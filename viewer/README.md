@@ -27,14 +27,15 @@ $CONVERTED/YYYY/YYYY_MM_DD/[<model-subdir>/]<filename>.jpg
 
 | Machine | Has        | Runs                                   |
 |---------|------------|----------------------------------------|
-| Pi      | `$CONVERTED` only (no `$SOURCE`) | `cli.py index / serve / export-marks` |
-| Desktop | `$SOURCE` + `$CONVERTED`        | `delete_marked.py purge`              |
+| Pi      | `$CONVERTED` only (no `$SOURCE`) | `cli.py index / serve` |
+| Desktop | `$SOURCE` + `$CONVERTED`        | `../prune/delete_marked.py`, `../sync/sync-converted` |
 
-The Pi writes delete-marks into its DB. From the desktop,
-`sync/sync-converted pull-marks` runs `cli.py export-marks` on the Pi over ssh
-and copies the marks file back; `delete_marked.py purge` then removes the
-**source originals** only. The converted copies are reconciled by
-`ingest/3prune-orphaned-converted.py` and propagated to the Pi by the next
+The Pi only writes delete-marks into its own sqlite DB — it never runs the
+extraction. From the desktop, `sync/sync-converted pull-marks` pulls a copy of
+the Pi's DB and runs `cli.py export-marks --stdout` against it locally, writing
+`~/chronicle-delete-marks.txt`. `prune/delete_marked.py purge` then removes the
+**source originals** only; the converted copies are reconciled by
+`prune/3prune-orphaned-converted.py` and propagated to the Pi by the next
 `sync/sync-converted push` (whose `rsync --delete` drops them and reindexes the
 Pi). See the top-level `../README.md` for the full pipeline.
 
@@ -64,16 +65,10 @@ CONVERTED=~/data00/footage_converted ./env/bin/python cli.py index
 
 # Inspect a selection without serving (optionally pretend it's another day)
 ./env/bin/python cli.py select --n 10 --date 2026-06-26
-
-# Desktop: pull the latest marks off the Pi (runs export-marks remotely), then
-# preview and purge the SOURCE originals (converted left for 3prune + sync).
-../sync/sync-converted pull-marks
-CONVERTED=~/data00/footage_converted SOURCE=~/data00/footage \
-  ./env/bin/python delete_marked.py list
-... delete_marked.py purge --dry-run
-... delete_marked.py purge                  # prompts before deleting
-... delete_marked.py purge --converted-too  # also delete the converted .jpg here
 ```
+
+The marks-pull and source deletion run on the desktop from the `prune/` and
+`sync/` stages — see `../prune/README.md` and the top-level `../README.md`.
 
 ## Deploy on the Pi (systemd user units)
 

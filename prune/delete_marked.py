@@ -19,10 +19,25 @@ file works even though the Pi mounts the converted tree elsewhere.
 
 import argparse
 import glob as globmod
+import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
-from photoframe import config, db
+
+def _expand(value: str) -> Path:
+    return Path(value).expanduser()
+
+
+# Self-contained config (mirrors viewer/photoframe/config.py defaults) so this
+# M1-side tool has no dependency on the viewer package.
+CONVERTED = _expand(os.environ.get("CONVERTED", "~/data00/footage_converted"))
+SOURCE = _expand(os.environ.get("SOURCE", "~/data00/footage"))
+MARKS_FILE = _expand(os.environ.get("CHRONICLE_MARKS", "~/chronicle-delete-marks.txt"))
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 
 
 def _resolve(rel_path, converted_root, source_root):
@@ -111,7 +126,7 @@ def cmd_purge(args):
                 try:
                     if target.exists():
                         target.unlink()
-                        logf.write(f"{db.now_iso()}\t{target}\n")
+                        logf.write(f"{_now_iso()}\t{target}\n")
                         deleted += 1
                         print(f"removed {target}")
                     else:
@@ -128,9 +143,9 @@ def cmd_purge(args):
 
 def build_parser():
     p = argparse.ArgumentParser(prog="delete_marked", description=__doc__)
-    p.add_argument("--marks", default=str(config.MARKS_FILE), help="marks file (rel_paths)")
-    p.add_argument("--converted", type=Path, default=config.CONVERTED, help="desktop $CONVERTED root")
-    p.add_argument("--source", type=Path, default=config.SOURCE, help="desktop $SOURCE root")
+    p.add_argument("--marks", default=str(MARKS_FILE), help="marks file (rel_paths)")
+    p.add_argument("--converted", type=Path, default=CONVERTED, help="desktop $CONVERTED root")
+    p.add_argument("--source", type=Path, default=SOURCE, help="desktop $SOURCE root")
     sub = p.add_subparsers(dest="command", required=True)
 
     sp = sub.add_parser("list", help="preview what is marked, no deletion")
@@ -146,7 +161,7 @@ def build_parser():
     )
     sp.add_argument(
         "--log",
-        default=str(Path(config.MARKS_FILE).with_name("photoframe-deleted.log")),
+        default=str(MARKS_FILE.with_name("chronicle-deleted.log")),
         help="append deleted paths here",
     )
     sp.set_defaults(func=cmd_purge)

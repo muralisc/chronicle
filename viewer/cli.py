@@ -10,6 +10,7 @@ Subcommands:
 
 import argparse
 import logging
+import sys
 from datetime import date
 
 from photoframe import config, db, indexer, logging_setup, selector
@@ -58,9 +59,15 @@ def cmd_serve(args):
 def cmd_export_marks(args):
     conn = _open()
     rel_paths = db.marked_rel_paths(conn)
+    text = "".join(p + "\n" for p in rel_paths)
+    if args.stdout:
+        # Used by `sync-converted pull-marks`: M1 runs this against a pulled copy
+        # of the Pi's DB and captures the marks, so no file is left on the Pi.
+        sys.stdout.write(text)
+        return
     out = config.MARKS_FILE
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("".join(p + "\n" for p in rel_paths))
+    out.write_text(text)
     print(f"wrote {len(rel_paths)} marked path(s) to {out}")
 
 
@@ -81,6 +88,7 @@ def build_parser():
     sp.set_defaults(func=cmd_serve)
 
     sp = sub.add_parser("export-marks", help="write marked rel_paths to the marks file")
+    sp.add_argument("--stdout", action="store_true", help="print to stdout instead of the marks file")
     sp.set_defaults(func=cmd_export_marks)
 
     return p

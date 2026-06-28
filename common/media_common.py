@@ -1,6 +1,8 @@
-"""Shared helpers for the media-organize scripts (date parsing, EXIF reading,
-rich progress/summary). Imported by the sibling scripts that live in this folder
-(e.g. 1import-media-by-exif.py, 2encode-images-for-viewing.py).
+"""Shared helpers (date parsing, EXIF reading, rich progress/summary) used across
+the chronicle pipeline. Lives in common/ and is imported by scripts in ingest/
+(1import, 2encode) and prune/ (3prune) via a sys.path shim. ``exiftool`` is
+imported lazily inside read_metadata() so EXIF-free consumers (e.g. 3prune) need
+only ``rich``.
 """
 
 import re
@@ -9,7 +11,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import exiftool
 from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from rich.table import Table
@@ -73,6 +74,8 @@ def read_metadata(files: list[Path], chunk_size: int = 200, description: str = "
     """Batch-read EXIF for files in chunks (reusing one exiftool process) with a
     progress bar. Returns metadata dicts aligned with the input order.
     """
+    import exiftool  # lazy: only EXIF-reading consumers need PyExifTool
+
     console.print(f"Reading EXIF for [bold]{len(files)}[/bold] files…")
     metadata: list[dict] = []
     with exiftool.ExifToolHelper() as et:

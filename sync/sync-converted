@@ -6,11 +6,11 @@
 #
 #   sync-converted push         mirror footage_converted M1 -> M2 (adds + prunes),
 #                               then reindex on M2 so its DB drops removed rows.
-#   sync-converted pull-marks   regenerate delete-marks on M2 and copy them back,
-#                               ready for review + viewer/delete_marked.py.
+#   sync-converted pull-marks   pull the Pi's sqlite DB and extract the delete-marks
+#                               locally on M1 (the Pi never runs the CLI).
 #
-# A full delete cycle: pull-marks -> review -> delete_marked.py (source-only) ->
-# ingest/3prune-orphaned-converted.py -> push (the --delete propagates to M2).
+# A full delete cycle: pull-marks -> review -> prune/delete_marked.py (source-only)
+# -> prune/3prune-orphaned-converted.py -> push (the --delete propagates to M2).
 #
 # Usage:
 #   sync-converted push
@@ -25,10 +25,14 @@ set -euo pipefail
 M2_HOST=${M2_HOST:-pi@machine2}
 LOCAL_CONVERTED=${CONVERTED:-$HOME/data00/footage_converted}
 REMOTE_CONVERTED=${M2_CONVERTED:-data00/footage_converted}   # relative to M2 $HOME
-REMOTE_VIEWER=${M2_VIEWER:-src/chronicle/viewer}             # relative to M2 $HOME
+REMOTE_VIEWER=${M2_VIEWER:-src/chronicle/viewer}             # relative to M2 $HOME (push reindex)
 REMOTE_PY=${M2_PY:-env/bin/python}                           # relative to REMOTE_VIEWER
-MARKS_FILE=${PHOTOFRAME_MARKS:-$HOME/photoframe-delete-marks.txt}
-REMOTE_MARKS=${M2_MARKS:-photoframe-delete-marks.txt}        # relative to M2 $HOME
+REMOTE_DB=${M2_DB:-photoframe.sqlite}                        # M2 sqlite, relative to M2 $HOME
+MARKS_FILE=${CHRONICLE_MARKS:-$HOME/chronicle-delete-marks.txt}
+
+# Local (M1) paths, derived from this script's own location.
+REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+VIEWER_PY=${M1_VIEWER_PY:-$REPO_DIR/viewer/env/bin/python}
 
 RSYNC_FLAGS=(
   --archive
@@ -43,10 +47,10 @@ RSYNC_FLAGS=(
 BLUE=$(tput setaf 4 2>/dev/null || true)
 RESET=$(tput sgr0 2>/dev/null || true)
 
-# Run viewer/cli.py on M2 with the right env. $1 is the subcommand (index/export-marks).
+# Run viewer/cli.py on M2 (used by push to reindex). $1 is the subcommand.
 remote_cli() {
   ssh "$M2_HOST" \
-    "cd '$REMOTE_VIEWER' && CONVERTED='$REMOTE_CONVERTED' PHOTOFRAME_MARKS='\$HOME/$REMOTE_MARKS' '$REMOTE_PY' cli.py $1"
+    "cd '$REMOTE_VIEWER' && CONVERTED='$REMOTE_CONVERTED' '$REMOTE_PY' cli.py $1"
 }
 
 itemize_legend() {
@@ -85,16 +89,25 @@ cmd_push() {
 }
 
 cmd_pull_marks() {
-  echo -e "Regenerating marks on ${BLUE}${M2_HOST}${RESET}..."
-  remote_cli export-marks
+  # Pull the Pi's DB to a temp dir and extract marks locally — the Pi never runs
+  # the CLI or leaves a marks file behind.
+  local tmp dbbase
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' RETURN
+  dbbase=$(basename "$REMOTE_DB")
 
-  echo "Pulling marks -> ${MARKS_FILE}"
-  rsync -a "$M2_HOST:$REMOTE_MARKS" "$MARKS_FILE"
+  echo -e "Pulling DB from ${BLUE}${M2_HOST}${RESET} (incl. -wal so recent marks aren't missed)..."
+  # The glob expands on the remote shell: main file + -wal (+ -shm) if present.
+  rsync -a "$M2_HOST:$REMOTE_DB"* "$tmp/"
+
+  echo "Extracting marks -> ${MARKS_FILE}"
+  PHOTOFRAME_DB="$tmp/$dbbase" PHOTOFRAME_LOG="$tmp/cli.log" \
+    "$VIEWER_PY" "$REPO_DIR/viewer/cli.py" export-marks --stdout > "$MARKS_FILE"
 
   local n
   n=$(grep -c . "$MARKS_FILE" 2>/dev/null || echo 0)
   echo -e "${BLUE}${n}${RESET} path(s) marked for deletion. Review, then:"
-  echo "  viewer/delete_marked.py purge --dry-run"
+  echo "  prune/delete_marked.py purge --dry-run"
 }
 
 case "${1:-}" in

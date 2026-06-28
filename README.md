@@ -12,8 +12,8 @@ desktop and are pushed with `rsync --delete`.
 
 | Machine | Has | Runs |
 |---------|-----|------|
-| **M1** desktop (source of truth, not always on) | `footage` + `footage_converted` | `ingest/`, `viewer/delete_marked.py`, `sync/sync-converted` |
-| **M2** Pi (always-on viewer) | `footage_converted` only | `viewer/` (`cli.py serve / index / export-marks`) |
+| **M1** desktop (source of truth, not always on) | `footage` + `footage_converted` | `ingest/`, `prune/`, `sync/sync-converted` |
+| **M2** Pi (always-on viewer) | `footage_converted` only | `viewer/` (`cli.py serve / index`) |
 
 ## The pipeline
 
@@ -23,13 +23,13 @@ M1  ingest/2encode-images-for-viewing.py   footage -> footage_converted   (idemp
 M1  sync/sync-converted push               footage_converted --delete--> M2
 
 M2  viewer/cli.py serve                     show photos; user marks deletes on screen/phone
-M2  viewer/cli.py export-marks              marks -> marks file on M2
+                                            (marks live in the Pi's sqlite DB)
 
 # delete cycle (run on M1 when convenient):
-M1  sync/sync-converted pull-marks          ssh export-marks on M2, copy marks back
+M1  sync/sync-converted pull-marks          pull the Pi's DB, extract marks locally on M1
 M1  (review the marks)
-M1  viewer/delete_marked.py purge           delete SOURCE originals only (confirm)
-M1  ingest/3prune-orphaned-converted.py     remove now-orphaned converted on M1
+M1  prune/delete_marked.py purge            delete SOURCE originals only (confirm)
+M1  prune/3prune-orphaned-converted.py      remove now-orphaned converted on M1
 M1  sync/sync-converted push                --delete propagates removals -> M2
                                             (push also reindexes on M2 to drop rows)
 ```
@@ -38,9 +38,11 @@ M1  sync/sync-converted push                --delete propagates removals -> M2
 
 ```
 chronicle/
-  ingest/   1import / 2encode / 3prune media scripts + media_common.py  (see ingest/README.md)
-  viewer/   the photo-frame web app + delete_marked.py                  (see viewer/README.md)
-  sync/     sync-converted — rsync M1<->M2 wrapper
+  common/   media_common.py — shared date/EXIF/progress helpers (ingest + prune)
+  ingest/   1import / 2encode — import & downsize footage          (see ingest/README.md)
+  prune/    delete_marked.py + 3prune — the M1 delete cycle        (see prune/README.md)
+  viewer/   the photo-frame web app (runs on the Pi)               (see viewer/README.md)
+  sync/     sync-converted — rsync M1<->M2 wrapper + marks pull
 ```
 
 ## Setup
@@ -49,6 +51,7 @@ Each Python subtree keeps its own venv:
 
 ```bash
 python -m venv ingest/venv && ingest/venv/bin/pip install -r ingest/requirements.txt
+python -m venv prune/venv  && prune/venv/bin/pip  install -r prune/requirements.txt
 python -m venv viewer/env  && viewer/env/bin/pip  install -r viewer/requirements.txt
 # ingest also needs the exiftool / imagemagick CLIs on PATH (see ingest/README.md)
 ```
