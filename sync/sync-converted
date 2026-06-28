@@ -55,15 +55,18 @@ itemize_legend() {
 rsync --itemize-changes legend (https://stackoverflow.com/a/36851784):
   YXcstpoguax path/to/file
   |||||||||||
-  ||||||||||`- x: extended attribute changed   |`- file type: f file, d dir, L symlink
-  |||||||||`-- a: ACL changed                   `-- update type: < sent, > received,
-  ||||||||`--- u: reserved                          c local create, * message (e.g. deleting)
+  ||||||||||`- x: extended attribute changed   
+  |||||||||`-- a: ACL changed                  
+  ||||||||`--- u: reserved                     
   |||||||`---- g: group differs
   ||||||`----- o: owner differs
   |||||`------ p: permissions differ
   ||||`------- t: mtime differs
   |||`-------- s: size differs
   ||`--------- c: checksum/content differs
+  |`- file type: f file, d dir, L symlink
+   `-- update type: < sent, > received,
+       c local create, * message (e.g. deleting)
 EOF
 }
 
