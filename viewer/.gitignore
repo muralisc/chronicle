@@ -1,0 +1,15 @@
+# venv
+env/
+venv/
+.venv/
+
+# python
+__pycache__/
+*.py[cod]
+
+# runtime data
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+delete-marks.txt
+*.log

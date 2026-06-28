@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Photo Frame</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="stage">
+    <img id="img-a" class="slide" alt="">
+    <img id="img-b" class="slide" alt="">
+  </div>
+
+  <!-- transparent click zones: left = previous, right = next -->
+  <div id="nav-prev"></div>
+  <div id="nav-next"></div>
+
+  <div id="overlay">
+    <div id="caption">
+      <span id="counter"></span>
+      <span id="date"></span>
+      <span id="years-ago"></span>
+      <span id="path"></span>
+      <span id="window-info"></span>
+    </div>
+    <div id="controls">
+      <button id="new-set-btn" type="button">New set</button>
+      <button id="delete-btn" type="button" aria-pressed="false">Delete</button>
+    </div>
+  </div>
+
+  <div id="empty" hidden>No photos to show.</div>
+
+  <script>
+    window.SLIDE_SECONDS = {{ slide_seconds }};
+  </script>
+  <script src="/static/slideshow.js"></script>
+</body>
+</html>

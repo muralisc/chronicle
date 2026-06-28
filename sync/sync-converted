@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+# Move footage_converted between the desktop (Machine 1, source of truth) and the
+# always-on viewer (Machine 2, the Pi). footage_converted is 100% derived, so the
+# desktop is always authoritative and we only ever push one way with --delete.
+#
+#   sync-converted push         mirror footage_converted M1 -> M2 (adds + prunes),
+#                               then reindex on M2 so its DB drops removed rows.
+#   sync-converted pull-marks   regenerate delete-marks on M2 and copy them back,
+#                               ready for review + viewer/delete_marked.py.
+#
+# A full delete cycle: pull-marks -> review -> delete_marked.py (source-only) ->
+# ingest/3prune-orphaned-converted.py -> push (the --delete propagates to M2).
+#
+# Usage:
+#   sync-converted push
+#   sync-converted pull-marks
+#
+# Override any of the config below via environment variables, e.g.
+#   M2_HOST=pi@pihole sync-converted push
+
+set -euo pipefail
+
+# --- config (env-overridable) -----------------------------------------------
+M2_HOST=${M2_HOST:-pi@machine2}
+LOCAL_CONVERTED=${CONVERTED:-$HOME/data00/footage_converted}
+REMOTE_CONVERTED=${M2_CONVERTED:-data00/footage_converted}   # relative to M2 $HOME
+REMOTE_VIEWER=${M2_VIEWER:-src/chronicle/viewer}             # relative to M2 $HOME
+REMOTE_PY=${M2_PY:-env/bin/python}                           # relative to REMOTE_VIEWER
+MARKS_FILE=${PHOTOFRAME_MARKS:-$HOME/photoframe-delete-marks.txt}
+REMOTE_MARKS=${M2_MARKS:-photoframe-delete-marks.txt}        # relative to M2 $HOME
+
+RSYNC_FLAGS=(
+  --archive
+  --human-readable
+  --itemize-changes
+  --partial
+  --delete
+  --stats
+  --info=progress2
+)
+
+BLUE=$(tput setaf 4 2>/dev/null || true)
+RESET=$(tput sgr0 2>/dev/null || true)
+
+# Run viewer/cli.py on M2 with the right env. $1 is the subcommand (index/export-marks).
+remote_cli() {
+  ssh "$M2_HOST" \
+    "cd '$REMOTE_VIEWER' && CONVERTED='$REMOTE_CONVERTED' PHOTOFRAME_MARKS='\$HOME/$REMOTE_MARKS' '$REMOTE_PY' cli.py $1"
+}
+
+itemize_legend() {
+  cat <<'EOF'
+
+rsync --itemize-changes legend (https://stackoverflow.com/a/36851784):
+  YXcstpoguax path/to/file
+  |||||||||||
+  ||||||||||`- x: extended attribute changed   |`- file type: f file, d dir, L symlink
+  |||||||||`-- a: ACL changed                   `-- update type: < sent, > received,
+  ||||||||`--- u: reserved                          c local create, * message (e.g. deleting)
+  |||||||`---- g: group differs
+  ||||||`----- o: owner differs
+  |||||`------ p: permissions differ
+  ||||`------- t: mtime differs
+  |||`-------- s: size differs
+  ||`--------- c: checksum/content differs
+EOF
+}
+
+cmd_push() {
+  local src="${LOCAL_CONVERTED%/}/"            # trailing slash: mirror, don't nest
+  local dst="$M2_HOST:$REMOTE_CONVERTED/"
+
+  echo -e "Dry run: ${BLUE}${src}${RESET} -> ${BLUE}${dst}${RESET}"
+  rsync "${RSYNC_FLAGS[@]}" -n "$src" "$dst"
+  itemize_legend
+
+  echo -e "\n${BLUE}Proceed with the real sync (this --deletes on M2)? [Enter to continue, Ctrl-C to abort]${RESET}"
+  read -r
+
+  rsync "${RSYNC_FLAGS[@]}" "$src" "$dst"
+
+  echo -e "\nReindexing on ${BLUE}${M2_HOST}${RESET} to prune rows for deleted files..."
+  remote_cli index
+}
+
+cmd_pull_marks() {
+  echo -e "Regenerating marks on ${BLUE}${M2_HOST}${RESET}..."
+  remote_cli export-marks
+
+  echo "Pulling marks -> ${MARKS_FILE}"
+  rsync -a "$M2_HOST:$REMOTE_MARKS" "$MARKS_FILE"
+
+  local n
+  n=$(grep -c . "$MARKS_FILE" 2>/dev/null || echo 0)
+  echo -e "${BLUE}${n}${RESET} path(s) marked for deletion. Review, then:"
+  echo "  viewer/delete_marked.py purge --dry-run"
+}
+
+case "${1:-}" in
+  push)       cmd_push ;;
+  pull-marks) cmd_pull_marks ;;
+  *)
+    echo "Usage: $(basename "$0") {push|pull-marks}" >&2
+    exit 2
+    ;;
+esac
