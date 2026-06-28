@@ -19,11 +19,9 @@ CONVERTED = _expand(os.environ.get("CONVERTED", "~/data00/footage_converted"))
 # Root of the original images. Only needed by the desktop purge tool.
 SOURCE = _expand(os.environ.get("SOURCE", "~/data00/footage"))
 
-# SQLite database holding display history + delete marks.
+# SQLite database holding display history + delete marks. The desktop reads
+# delete-marks straight from a pulled copy of this DB (see ../prune/).
 DB_PATH = _expand(os.environ.get("PHOTOFRAME_DB", "~/photoframe.sqlite"))
-
-# Where ``export-marks`` writes the list of rel_paths flagged for deletion.
-MARKS_FILE = _expand(os.environ.get("PHOTOFRAME_MARKS", "~/photoframe-delete-marks.txt"))
 
 # Log of files that did not match the canonical layout during indexing.
 INDEX_ERROR_LOG = _expand(

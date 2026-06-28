@@ -26,8 +26,8 @@ M2  viewer/cli.py serve                     show photos; user marks deletes on s
                                             (marks live in the Pi's sqlite DB)
 
 # delete cycle (run on M1 when convenient):
-M1  sync/sync-converted pull-marks          pull the Pi's DB, extract marks locally on M1
-M1  (review the marks)
+M1  sync/sync-converted pull-marks          rsync a copy of the Pi's DB to M1
+M1  prune/delete_marked.py list             review the marked rows (read from that DB)
 M1  prune/delete_marked.py purge            delete SOURCE originals only (confirm)
 M1  prune/3prune-orphaned-converted.py      remove now-orphaned converted on M1
 M1  sync/sync-converted push                --delete propagates removals -> M2

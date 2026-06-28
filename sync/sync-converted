@@ -6,8 +6,8 @@
 #
 #   sync-converted push         mirror footage_converted M1 -> M2 (adds + prunes),
 #                               then reindex on M2 so its DB drops removed rows.
-#   sync-converted pull-marks   pull the Pi's sqlite DB and extract the delete-marks
-#                               locally on M1 (the Pi never runs the CLI).
+#   sync-converted pull-marks   rsync a copy of the Pi's sqlite DB to M1; the
+#                               delete tools read the marked rows straight from it.
 #
 # A full delete cycle: pull-marks -> review -> prune/delete_marked.py (source-only)
 # -> prune/3prune-orphaned-converted.py -> push (the --delete propagates to M2).
@@ -28,11 +28,7 @@ REMOTE_CONVERTED=${M2_CONVERTED:-data00/footage_converted}   # relative to M2 $H
 REMOTE_VIEWER=${M2_VIEWER:-src/chronicle/viewer}             # relative to M2 $HOME (push reindex)
 REMOTE_PY=${M2_PY:-env/bin/python}                           # relative to REMOTE_VIEWER
 REMOTE_DB=${M2_DB:-photoframe.sqlite}                        # M2 sqlite, relative to M2 $HOME
-MARKS_FILE=${CHRONICLE_MARKS:-$HOME/chronicle-delete-marks.txt}
-
-# Local (M1) paths, derived from this script's own location.
-REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
-VIEWER_PY=${M1_VIEWER_PY:-$REPO_DIR/viewer/env/bin/python}
+MARKS_DB_DIR=${CHRONICLE_MARKS_DIR:-$HOME/.cache/chronicle}  # where the DB copy lands on M1
 
 RSYNC_FLAGS=(
   --archive
@@ -89,24 +85,17 @@ cmd_push() {
 }
 
 cmd_pull_marks() {
-  # Pull the Pi's DB to a temp dir and extract marks locally — the Pi never runs
-  # the CLI or leaves a marks file behind.
-  local tmp dbbase
-  tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' RETURN
-  dbbase=$(basename "$REMOTE_DB")
-
-  echo -e "Pulling DB from ${BLUE}${M2_HOST}${RESET} (incl. -wal so recent marks aren't missed)..."
+  # Just rsync the Pi's DB to M1 — no remote CLI, no marks file. The delete tools
+  # (prune/delete_marked.py) read the marked rows straight from this copy.
+  mkdir -p "$MARKS_DB_DIR"
+  echo -e "Pulling DB from ${BLUE}${M2_HOST}${RESET} -> ${MARKS_DB_DIR} (incl. -wal so recent marks aren't missed)..."
   # The glob expands on the remote shell: main file + -wal (+ -shm) if present.
-  rsync -a "$M2_HOST:$REMOTE_DB"* "$tmp/"
+  rsync -a "$M2_HOST:$REMOTE_DB"* "$MARKS_DB_DIR/"
 
-  echo "Extracting marks -> ${MARKS_FILE}"
-  PHOTOFRAME_DB="$tmp/$dbbase" PHOTOFRAME_LOG="$tmp/cli.log" \
-    "$VIEWER_PY" "$REPO_DIR/viewer/cli.py" export-marks --stdout > "$MARKS_FILE"
-
-  local n
-  n=$(grep -c . "$MARKS_FILE" 2>/dev/null || echo 0)
-  echo -e "${BLUE}${n}${RESET} path(s) marked for deletion. Review, then:"
+  local db="$MARKS_DB_DIR/$(basename "$REMOTE_DB")"
+  echo -e "DB copy ready: ${BLUE}${db}${RESET}"
+  echo "Review + act (reads this DB by default):"
+  echo "  prune/delete_marked.py list"
   echo "  prune/delete_marked.py purge --dry-run"
 }
 

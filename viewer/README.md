@@ -31,10 +31,10 @@ $CONVERTED/YYYY/YYYY_MM_DD/[<model-subdir>/]<filename>.jpg
 | Desktop | `$SOURCE` + `$CONVERTED`        | `../prune/delete_marked.py`, `../sync/sync-converted` |
 
 The Pi only writes delete-marks into its own sqlite DB — it never runs the
-extraction. From the desktop, `sync/sync-converted pull-marks` pulls a copy of
-the Pi's DB and runs `cli.py export-marks --stdout` against it locally, writing
-`~/chronicle-delete-marks.txt`. `prune/delete_marked.py purge` then removes the
-**source originals** only; the converted copies are reconciled by
+extraction. From the desktop, `sync/sync-converted pull-marks` just rsyncs a copy
+of the Pi's DB to M1; `prune/delete_marked.py` reads the marked rows straight
+from that copy (no marks file, no remote CLI) and `purge` removes the **source
+originals** only. The converted copies are reconciled by
 `prune/3prune-orphaned-converted.py` and propagated to the Pi by the next
 `sync/sync-converted push` (whose `rsync --delete` drops them and reindexes the
 Pi). See the top-level `../README.md` for the full pipeline.
@@ -45,8 +45,7 @@ Pi). See the top-level `../README.md` for the full pipeline.
 |-----|---------|---------|
 | `CONVERTED` | `~/data00/footage_converted` | downsized images root |
 | `SOURCE` | `~/data00/footage` | originals (desktop only) |
-| `PHOTOFRAME_DB` | `~/photoframe.sqlite` | database |
-| `PHOTOFRAME_MARKS` | `~/photoframe-delete-marks.txt` | exported marks |
+| `PHOTOFRAME_DB` | `~/photoframe.sqlite` | database (display history + delete marks) |
 | `PHOTOFRAME_PORT` | `5000` | web port |
 | `PHOTOFRAME_N` | `10` | photos per rotation (`n`) |
 | `PHOTOFRAME_X_MINS` | `180` | minutes before a new subset (`x`) |

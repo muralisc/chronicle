@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 """Offline deletion tool -- runs on the desktop, where $SOURCE exists.
 
-Reads the marks file pulled from the Pi (one rel_path per line, produced by
-``cli.py export-marks`` and fetched by ``sync/sync-converted pull-marks``) and
-deletes, for each entry, the original under $SOURCE -- the single source of
+Reads the marked rows straight from a copy of the Pi's sqlite DB that
+``sync/sync-converted pull-marks`` rsyncs to M1 (no marks file, no remote CLI),
+and deletes, for each entry, the original under $SOURCE -- the single source of
 truth. The converted ``.jpg`` is left alone; reconcile it afterwards with
-``ingest/3prune-orphaned-converted.py`` and propagate the removal to the Pi with
+``3prune-orphaned-converted.py`` and propagate the removal to the Pi with
 ``sync/sync-converted push`` (which mirrors with ``--delete``). Pass
 ``--converted-too`` to also delete the converted copy here.
 
 Source is recovered by globbing ``<basename-without-ext>*`` in the mirrored
 relative dir (the source may be .CR3/.HEIC/etc while the converted file is .jpg).
+Paths are stored relative to $CONVERTED so the same rows resolve on either
+machine. Pass ``--marks FILE`` to read rel_paths from a text file instead of a DB.
 
 Nothing is deleted without ``--yes`` (or an interactive confirmation); use
-``--dry-run`` to preview. Paths are relative to $CONVERTED so the same marks
-file works even though the Pi mounts the converted tree elsewhere.
+``--dry-run`` to preview.
 """
 
 import argparse
 import glob as globmod
 import os
+import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +35,9 @@ def _expand(value: str) -> Path:
 # M1-side tool has no dependency on the viewer package.
 CONVERTED = _expand(os.environ.get("CONVERTED", "~/data00/footage_converted"))
 SOURCE = _expand(os.environ.get("SOURCE", "~/data00/footage"))
-MARKS_FILE = _expand(os.environ.get("CHRONICLE_MARKS", "~/chronicle-delete-marks.txt"))
+# DB copy that `sync-converted pull-marks` drops here (filename mirrors M2's DB).
+MARKS_DB = _expand(os.environ.get("CHRONICLE_MARKS_DB", "~/.cache/chronicle/photoframe.sqlite"))
+DELETE_LOG = _expand(os.environ.get("CHRONICLE_DELETE_LOG", "~/chronicle-deleted.log"))
 
 
 def _now_iso() -> str:
@@ -58,10 +62,29 @@ def _read_marks(marks_file):
     return [ln.strip() for ln in lines if ln.strip()]
 
 
+def _marked_from_db(db_path):
+    """Read marked rel_paths directly from a pulled photoframe sqlite DB."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            "SELECT rel_path FROM photos WHERE marked_for_delete = 1 ORDER BY rel_path"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [r[0] for r in rows]
+
+
+def _load_rels(args):
+    """(rel_paths, human-readable source description). Text file overrides the DB."""
+    if args.marks:
+        return _read_marks(args.marks), f"marks file {args.marks}"
+    return _marked_from_db(args.from_db), f"DB {args.from_db}"
+
+
 def cmd_list(args):
     converted_root, source_root = args.converted, args.source
-    rels = _read_marks(args.marks)
-    print(f"{len(rels)} marked path(s) in {args.marks}\n")
+    rels, src_desc = _load_rels(args)
+    print(f"{len(rels)} marked path(s) from {src_desc}\n")
     for rel in rels:
         converted, matches = _resolve(rel, converted_root, source_root)
         c_state = "ok" if converted.exists() else "MISSING"
@@ -78,7 +101,7 @@ def cmd_list(args):
 
 def cmd_purge(args):
     converted_root, source_root = args.converted, args.source
-    rels = _read_marks(args.marks)
+    rels, _ = _load_rels(args)
 
     plan = []        # (rel, converted_path, [source_files])
     skipped = []     # (rel, reason)
@@ -135,15 +158,18 @@ def cmd_purge(args):
                     print(f"ERROR removing {target}: {e}", file=sys.stderr)
     print(f"\nDeleted {deleted} file(s); log appended to {log_path}")
     if args.converted_too:
-        print("Run `cli.py index` on the Pi to prune the now-missing rows.")
+        print("Next: sync/sync-converted push to propagate the removals to the Pi.")
     else:
-        print("Next: ingest/3prune-orphaned-converted.py to reconcile converted,")
-        print("      then sync/sync-converted push to propagate the removals to M2.")
+        print("Next: 3prune-orphaned-converted.py to reconcile converted,")
+        print("      then sync/sync-converted push to propagate the removals to the Pi.")
 
 
 def build_parser():
     p = argparse.ArgumentParser(prog="delete_marked", description=__doc__)
-    p.add_argument("--marks", default=str(MARKS_FILE), help="marks file (rel_paths)")
+    p.add_argument("--from-db", default=str(MARKS_DB),
+                   help="pulled sqlite DB to read marked rows from (default)")
+    p.add_argument("--marks", default=None,
+                   help="read rel_paths from this text file instead of the DB")
     p.add_argument("--converted", type=Path, default=CONVERTED, help="desktop $CONVERTED root")
     p.add_argument("--source", type=Path, default=SOURCE, help="desktop $SOURCE root")
     sub = p.add_subparsers(dest="command", required=True)
@@ -161,7 +187,7 @@ def build_parser():
     )
     sp.add_argument(
         "--log",
-        default=str(MARKS_FILE.with_name("chronicle-deleted.log")),
+        default=str(DELETE_LOG),
         help="append deleted paths here",
     )
     sp.set_defaults(func=cmd_purge)

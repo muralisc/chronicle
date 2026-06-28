@@ -7,13 +7,15 @@ source of truth; `footage_converted` is derived and reconciled to it.
 The order is: pull the marks → delete source → reconcile converted → push.
 
 ```bash
-# 0) pull the latest delete-marks off the Pi (extracts on M1, see ../sync)
-../sync/sync-converted pull-marks            # -> ~/chronicle-delete-marks.txt
+# 0) pull a copy of the Pi's DB to M1 (just an rsync, see ../sync)
+../sync/sync-converted pull-marks            # -> ~/.cache/chronicle/photoframe.sqlite
 
-# 1) delete the SOURCE originals for marked paths (preview, then for real)
+# 1) delete the SOURCE originals for marked paths (reads the pulled DB directly)
+venv/bin/python delete_marked.py list                   # review what's marked
 venv/bin/python delete_marked.py purge --dry-run
 venv/bin/python delete_marked.py purge                  # prompts before deleting
 #   --converted-too  also delete the converted .jpg here (default: leave to step 2)
+#   --marks FILE     read rel_paths from a text file instead of the DB
 
 # 2) reconcile footage_converted: drop converted files whose source is now gone
 venv/bin/python 3prune-orphaned-converted.py \
@@ -27,11 +29,12 @@ venv/bin/python 3prune-orphaned-converted.py \
 
 ## Files
 
-- `delete_marked.py` — reads the marks file (rel_paths) and deletes the matching
-  **source** originals. Stdlib-only; configured via `CONVERTED`, `SOURCE`, and
-  `CHRONICLE_MARKS` env vars (defaults under `~/data00`). The source original is
-  recovered by globbing `<stem>*` in the mirrored relative dir (it may be
-  `.CR3`/`.HEIC` while the converted file is `.jpg`).
+- `delete_marked.py` — reads the marked rows straight from the pulled DB copy
+  (`--from-db`, default `~/.cache/chronicle/photoframe.sqlite`; `CHRONICLE_MARKS_DB`
+  to override) and deletes the matching **source** originals. Stdlib-only;
+  `CONVERTED`/`SOURCE` env vars set the roots. The source original is recovered by
+  globbing `<stem>*` in the mirrored relative dir (it may be `.CR3`/`.HEIC` while
+  the converted file is `.jpg`). `--marks FILE` reads a text list instead.
 - `3prune-orphaned-converted.py` — removes converted files with no surviving
   source. Imports `media_common` from `../common` (needs `click` + `rich`).
 

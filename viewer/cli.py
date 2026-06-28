@@ -2,15 +2,16 @@
 """Command-line entrypoint for the photo frame (stdlib argparse).
 
 Subcommands:
-  index         walk $CONVERTED, (re)index images, prune missing rows
-  select        pick a fresh rotation now and print it (debug/inspection)
-  serve         run the web app (waitress)
-  export-marks  write rel_paths flagged for deletion to the marks file
+  index   walk $CONVERTED, (re)index images, prune missing rows
+  select  pick a fresh rotation now and print it (debug/inspection)
+  serve   run the web app (waitress)
+
+Delete-marks live in the DB; the desktop reads them straight from a pulled copy
+(see ../prune/delete_marked.py), so there is no marks-export step here.
 """
 
 import argparse
 import logging
-import sys
 from datetime import date
 
 from photoframe import config, db, indexer, logging_setup, selector
@@ -56,21 +57,6 @@ def cmd_serve(args):
     app.main()
 
 
-def cmd_export_marks(args):
-    conn = _open()
-    rel_paths = db.marked_rel_paths(conn)
-    text = "".join(p + "\n" for p in rel_paths)
-    if args.stdout:
-        # Used by `sync-converted pull-marks`: M1 runs this against a pulled copy
-        # of the Pi's DB and captures the marks, so no file is left on the Pi.
-        sys.stdout.write(text)
-        return
-    out = config.MARKS_FILE
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(text)
-    print(f"wrote {len(rel_paths)} marked path(s) to {out}")
-
-
 def build_parser():
     p = argparse.ArgumentParser(prog="photoframe", description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
@@ -86,10 +72,6 @@ def build_parser():
 
     sp = sub.add_parser("serve", help="run the web app (waitress)")
     sp.set_defaults(func=cmd_serve)
-
-    sp = sub.add_parser("export-marks", help="write marked rel_paths to the marks file")
-    sp.add_argument("--stdout", action="store_true", help="print to stdout instead of the marks file")
-    sp.set_defaults(func=cmd_export_marks)
 
     return p
 
