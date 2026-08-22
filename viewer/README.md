@@ -3,9 +3,11 @@
 A Raspberry Pi photo frame that shows a rotating subset of downsized photos from
 `$CONVERTED`, one per minute, picking a fresh subset every few hours. The subset
 favours **this day in prior years**, prefers **never-shown** photos, then the
-**least-recently-shown**. You can flag photos for deletion, or queue a
-clockwise rotation fix (90°/180°/270°), from the screen or your phone; a
-separate desktop tool actually applies both later.
+**least-recently-shown**. You can flag photos for deletion, queue a clockwise
+rotation fix (90°/180°/270°), or mark a photo **private** from the screen or
+your phone. Delete/rotate are applied later by a separate desktop tool;
+private is purely local to the viewer — a private photo is simply excluded
+from every future subset selection, permanently, until unmarked.
 
 Note: the slideshow's currently-selected batch of photos above is called the
 **subset** (`selector.py`, `/api/subset`, `config.SUBSET_REFRESH_MINS`) — kept

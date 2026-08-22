@@ -64,7 +64,8 @@ def _oldest_key(conn: sqlite3.Connection, targets: list[str]) -> tuple[int, str]
     placeholders = ",".join("?" * len(targets))
     row = conn.execute(
         f"SELECT last_displayed FROM photos "
-        f"WHERE marked_for_delete = 0 AND photo_date IN ({placeholders}) "
+        f"WHERE marked_for_delete = 0 AND is_private = 0 "
+        f"AND photo_date IN ({placeholders}) "
         f"{_ORDER} LIMIT 1",
         targets,
     ).fetchone()
@@ -111,7 +112,8 @@ def _window_counts(conn: sqlite3.Connection, targets: list[str]) -> tuple[int, i
     placeholders = ",".join("?" * len(targets))
     row = conn.execute(
         f"SELECT COUNT(*) AS available, COUNT(last_displayed) AS viewed "
-        f"FROM photos WHERE marked_for_delete = 0 AND photo_date IN ({placeholders})",
+        f"FROM photos WHERE marked_for_delete = 0 AND is_private = 0 "
+        f"AND photo_date IN ({placeholders})",
         targets,
     ).fetchone()
     return row["available"], row["viewed"]
@@ -133,7 +135,8 @@ def select_subset(
         placeholders = ",".join("?" * len(targets))
         chosen = conn.execute(
             f"SELECT * FROM photos "
-            f"WHERE marked_for_delete = 0 AND photo_date IN ({placeholders}) "
+            f"WHERE marked_for_delete = 0 AND is_private = 0 "
+            f"AND photo_date IN ({placeholders}) "
             f"{_ORDER} LIMIT ?",
             (*targets, n),
         ).fetchall()
@@ -143,7 +146,7 @@ def select_subset(
         excl = ",".join("?" * len(chosen_ids)) if chosen_ids else ""
         not_in = f"AND id NOT IN ({excl})" if chosen_ids else ""
         topup = conn.execute(
-            f"SELECT * FROM photos WHERE marked_for_delete = 0 {not_in} "
+            f"SELECT * FROM photos WHERE marked_for_delete = 0 AND is_private = 0 {not_in} "
             f"{_ORDER} LIMIT ?",
             (*chosen_ids, n - len(chosen)),
         ).fetchall()

@@ -38,7 +38,8 @@ def _close_conn(exc):
 
 def _subset_payload(conn, rows):
     today_year = date.today().year
-    net = db.pending_rotate_degrees(conn, [r["id"] for r in rows])
+    ids = [r["id"] for r in rows]
+    net = db.pending_rotate_degrees(conn, ids)
     payload = []
     for r in rows:
         photo_year = int(r["photo_date"][:4])
@@ -51,6 +52,7 @@ def _subset_payload(conn, rows):
                 "rel_path": r["rel_path"],
                 "marked": bool(r["marked_for_delete"]),
                 "rotate_deg": net.get(r["id"], 0),
+                "private": bool(r["is_private"]),
             }
         )
     return payload
@@ -128,6 +130,17 @@ def api_mark(photo_id):
         abort(404)
     log.info("photo %s mark %s", photo_id, "set" if new_state else "cleared")
     return jsonify({"id": photo_id, "marked": new_state})
+
+
+@app.route("/api/private/<int:photo_id>", methods=["POST"])
+def api_private(photo_id):
+    try:
+        new_state = db.toggle_private(_get_conn(), photo_id)
+    except KeyError:
+        log.warning("private toggle requested for unknown photo %s", photo_id)
+        abort(404)
+    log.info("photo %s private %s", photo_id, "set" if new_state else "cleared")
+    return jsonify({"id": photo_id, "private": new_state})
 
 
 def main():

@@ -39,6 +39,7 @@
     <h2>Pending actions</h2>
     <table>
       <tr><th>Marked for delete</th><td>{{ stats.marked_for_delete }}</td></tr>
+      <tr><th>Private</th><td>{{ stats.private }}</td></tr>
       <tr><th>Pending rotate operations</th><td>{{ stats.pending_rotate_ops }} (across {{ stats.pending_rotate_photos }} photo{{ "s" if stats.pending_rotate_photos != 1 else "" }})</td></tr>
     </table>
   </section>

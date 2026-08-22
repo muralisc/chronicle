@@ -10,6 +10,7 @@
   const pathEl = document.getElementById("path");
   const windowEl = document.getElementById("window-info");
   const deleteBtn = document.getElementById("delete-btn");
+  const privateBtn = document.getElementById("private-btn");
   const newSetBtn = document.getElementById("new-set-btn");
   const rotateBtns = {
     90: document.getElementById("rotate-90-btn"),
@@ -78,6 +79,7 @@
     pathEl.textContent = photo.rel_path;
     windowEl.textContent = windowText();
     deleteBtn.setAttribute("aria-pressed", photo.marked ? "true" : "false");
+    privateBtn.setAttribute("aria-pressed", photo.private ? "true" : "false");
   }
 
   function show(i) {
@@ -167,6 +169,19 @@
     const inSubset = subset.find((p) => p.id === current.id);
     if (inSubset) inSubset.marked = data.marked;
     deleteBtn.setAttribute("aria-pressed", data.marked ? "true" : "false");
+  });
+
+  privateBtn.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    if (!current) return;
+    const res = await fetch(`/api/private/${current.id}`, { method: "POST" });
+    if (!res.ok) return;
+    const data = await res.json();
+    current.private = data.private;
+    // keep the subset copy in sync too
+    const inSubset = subset.find((p) => p.id === current.id);
+    if (inSubset) inSubset.private = data.private;
+    privateBtn.setAttribute("aria-pressed", data.private ? "true" : "false");
   });
 
   // Force a fresh subset right now, without waiting for the refresh window.

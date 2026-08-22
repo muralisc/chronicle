@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS photos (
     last_displayed    TEXT,                   -- NULL = never shown
     display_count     INTEGER NOT NULL DEFAULT 0,
     marked_for_delete INTEGER NOT NULL DEFAULT 0,
-    marked_ts         TEXT
+    marked_ts         TEXT,
+    is_private        INTEGER NOT NULL DEFAULT 0,
+    private_ts        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS subset (
@@ -86,6 +88,20 @@ def toggle_mark(conn: sqlite3.Connection, photo_id: int) -> bool:
     new_state = 0 if row["marked_for_delete"] else 1
     conn.execute(
         "UPDATE photos SET marked_for_delete = ?, marked_ts = ? WHERE id = ?",
+        (new_state, now_iso() if new_state else None, photo_id),
+    )
+    conn.commit()
+    return bool(new_state)
+
+
+def toggle_private(conn: sqlite3.Connection, photo_id: int) -> bool:
+    """Flip ``is_private`` for a photo. Returns the new state."""
+    row = get_photo(conn, photo_id)
+    if row is None:
+        raise KeyError(f"no photo with id {photo_id}")
+    new_state = 0 if row["is_private"] else 1
+    conn.execute(
+        "UPDATE photos SET is_private = ?, private_ts = ? WHERE id = ?",
         (new_state, now_iso() if new_state else None, photo_id),
     )
     conn.commit()
@@ -176,6 +192,7 @@ def get_stats(conn: sqlite3.Connection) -> dict:
     marked_for_delete = conn.execute(
         "SELECT COUNT(*) FROM photos WHERE marked_for_delete = 1"
     ).fetchone()[0]
+    private = conn.execute("SELECT COUNT(*) FROM photos WHERE is_private = 1").fetchone()[0]
     pending_rotate_ops = conn.execute("SELECT COUNT(*) FROM pending_operations").fetchone()[0]
     pending_rotate_photos = conn.execute(
         "SELECT COUNT(DISTINCT photo_id) FROM pending_operations"
@@ -189,6 +206,7 @@ def get_stats(conn: sqlite3.Connection) -> dict:
         "shown": total - never_shown,
         "total_displays": total_displays,
         "marked_for_delete": marked_for_delete,
+        "private": private,
         "pending_rotate_ops": pending_rotate_ops,
         "pending_rotate_photos": pending_rotate_photos,
     }

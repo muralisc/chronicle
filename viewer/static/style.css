@@ -113,6 +113,10 @@ body:hover #overlay,
   background: #c0392b;
   border-color: #e74c3c;
 }
+#private-btn[aria-pressed="true"] {
+  background: #6c3fa0;
+  border-color: #8e5cd9;
+}
 
 #empty {
   position: fixed;
