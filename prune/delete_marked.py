@@ -14,6 +14,13 @@ relative dir (the source may be .CR3/.HEIC/etc while the converted file is .jpg)
 Paths are stored relative to $CONVERTED so the same rows resolve on either
 machine. Pass ``--marks FILE`` to read rel_paths from a text file instead of a DB.
 
+That glob also catches same-stem sidecars (e.g. a RawTherapee ``.pp3`` next to
+a ``.CR3``); when it returns more than one match, each is checked with
+``exiftool -MIMEType`` (the one external dependency this otherwise stdlib-only
+tool has) and only real images count towards "ambiguous source" -- once
+resolved, every matched file (image + sidecars) is still deleted together, so
+sidecars aren't left orphaned behind their image.
+
 Nothing is deleted without ``--yes`` (or an interactive confirmation); use
 ``--dry-run`` to preview.
 """
@@ -22,6 +29,7 @@ import argparse
 import glob as globmod
 import os
 import sqlite3
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -57,6 +65,25 @@ def _resolve(rel_path, converted_root, source_root):
     return converted, matches
 
 
+def _is_image_file(path):
+    """True if exiftool identifies ``path``'s content as an image -- used to
+    tell a real source apart from a same-stem sidecar (e.g. RawTherapee's
+    ``.pp3``), which the naive ``<stem>*`` glob also matches."""
+    proc = subprocess.run(
+        ["exiftool", "-s3", "-MIMEType", str(path)],
+        capture_output=True, text=True,
+    )
+    return proc.stdout.strip().startswith("image/")
+
+
+def _image_matches(matches):
+    """Filter glob matches down to real images when there's more than one
+    (skip the exiftool calls in the common single-match case)."""
+    if len(matches) <= 1:
+        return matches
+    return [m for m in matches if _is_image_file(m)]
+
+
 def _read_marks(marks_file):
     lines = Path(marks_file).read_text().splitlines()
     return [ln.strip() for ln in lines if ln.strip()]
@@ -88,12 +115,16 @@ def cmd_list(args):
     for rel in rels:
         converted, matches = _resolve(rel, converted_root, source_root)
         c_state = "ok" if converted.exists() else "MISSING"
-        if len(matches) == 1:
-            s_state = str(matches[0])
-        elif not matches:
-            s_state = "NO SOURCE MATCH"
+        image_matches = _image_matches(matches)
+        if len(image_matches) == 1:
+            extra = f"  (+ {len(matches) - 1} sidecar file(s))" if len(matches) > 1 else ""
+            s_state = f"{image_matches[0]}{extra}"
+        elif not image_matches:
+            non_image = f" (found only non-image file(s): {', '.join(str(m) for m in matches)})" if matches else ""
+            s_state = f"NO SOURCE MATCH{non_image}"
         else:
-            s_state = f"AMBIGUOUS ({len(matches)} matches)"
+            paths = ", ".join(str(m) for m in image_matches)
+            s_state = f"AMBIGUOUS ({len(image_matches)} image files): {paths}"
         print(f"- {rel}")
         print(f"    converted: {converted} [{c_state}]")
         print(f"    source:    {s_state}")
@@ -107,12 +138,17 @@ def cmd_purge(args):
     skipped = []     # (rel, reason)
     for rel in rels:
         converted, matches = _resolve(rel, converted_root, source_root)
-        if len(matches) > 1:
-            skipped.append((rel, f"ambiguous source ({len(matches)} matches)"))
+        image_matches = _image_matches(matches)
+        if len(image_matches) > 1:
+            paths = ", ".join(str(m) for m in image_matches)
+            skipped.append((rel, f"ambiguous source ({len(image_matches)} image files): {paths}"))
             continue
-        if not matches:
-            skipped.append((rel, "no source match"))
+        if not image_matches:
+            non_image = f" (found only non-image file(s), left alone: {', '.join(str(m) for m in matches)})" if matches else ""
+            skipped.append((rel, f"no source match{non_image}"))
             continue
+        # Delete every matched file (image + any sidecars like .pp3/.xmp)
+        # together, so a sidecar isn't left orphaned behind its image.
         plan.append((rel, converted, matches))
 
     keep_note = "" if args.converted_too else "  (kept -- reconcile with 3prune)"

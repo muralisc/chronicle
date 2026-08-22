@@ -67,17 +67,26 @@ M1  sync/sync-converted clear-ops       tells M2 to drop the pending_operations 
 - **`exiftool` is imported lazily** inside `media_common.read_metadata()`, so
   EXIF-free consumers (`prune/3prune`, `prune/delete_marked`) don't need
   `PyExifTool`. Don't hoist that import back to module top.
-- **`prune/delete_marked.py` is intentionally stdlib-only** and has **no
-  dependency on the `viewer/photoframe` package** — keep it self-contained
+- **`prune/delete_marked.py` is intentionally stdlib-only** (no `PyExifTool`,
+  no dependency on the `viewer/photoframe` package) — keep it self-contained
   (config via `CONVERTED`/`SOURCE`/`CHRONICLE_MARKS_DB` env vars). It reads marks
   straight from the pulled DB (`--from-db`); `--marks FILE` is an alt text input.
+  It does shell out to the `exiftool` **CLI** (not the library) when a glob
+  resolves to more than one match, to tell a real image apart from a same-stem
+  sidecar (see below) — that's its one external-process dependency.
 - **`sync/sync-converted` is pure bash** (rsync + ssh orchestration). The marks
   path must stay CLI-free; `push` may still `ssh … cli.py index` because that is
   M2 maintaining its *own* DB, not a cross-machine dependency.
 - **Source ↔ converted mapping:** converted is `<stem>.jpg`; the source original
   is recovered by globbing `<stem>*` in the mirrored relative dir (it may be
   `.CR3`/`.HEIC`/…). Paths are stored relative to `$CONVERTED` so the same rows
-  resolve on either machine.
+  resolve on either machine. That glob also catches same-stem sidecars (e.g. a
+  RawTherapee `.pp3` next to a `.CR3`); when it returns more than one match,
+  `delete_marked.py` and `apply_rotations.py` both check each with
+  `exiftool -MIMEType` and only count real images (`image/*`) as "ambiguous" —
+  sidecars are reported for debugging but don't block resolution, and
+  `delete_marked.py` still deletes every matched file (image + sidecars)
+  together once resolved.
 - **Layout on disk:** `$CONVERTED/YYYY/YYYY_MM_DD/[<model-subdir>/]<file>.jpg`.
 - **Deletions are confirmed:** `delete_marked.py` and `3prune` default to preview;
   real deletes need `--yes`/`--delete` or an interactive prompt. Keep that.
