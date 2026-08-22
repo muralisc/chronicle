@@ -1,7 +1,7 @@
 [Unit]
 Description=Photo Frame Chromium kiosk
-After=photoframe-web.service graphical.target
-Wants=photoframe-web.service
+After=chronicle-viewer.service graphical.target
+Wants=chronicle-viewer.service
 Requisite=graphical.target
 
 [Service]

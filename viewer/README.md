@@ -100,27 +100,11 @@ CONVERTED=~/data00/footage_converted ./env/bin/python cli.py index
 The marks-pull and source deletion run on the desktop from the `prune/` and
 `sync/` stages — see `../prune/README.md` and the top-level `../README.md`.
 
-## Deploy on the Pi (systemd user units)
+## Deploy (systemd user units)
 
-Adjust the `Environment=CONVERTED=` line in `systemd/photoframe-web.service` to
-the Pi's mount point, then:
-
-```bash
-mkdir -p ~/.config/systemd/user
-cp systemd/photoframe-*.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now photoframe-web.service photoframe-kiosk.service
-loginctl enable-linger "$USER"   # so the units run without an active login
-```
-
-The existing `raspberrypi-rtc` timer governs the Pi's on/off hours (it halts
-8pm–midnight and wakes it), so no sleep logic lives here.
-
-## Running elsewhere (no kiosk)
-
-For a plain background instance on any other machine (e.g. the desktop, for
-dev/testing) use `systemd/chronicle-viewer.service` instead — same web app,
-no Chromium/kiosk unit:
+`chronicle-viewer.service` runs the web app in the background — install it on
+any machine (adjust `Environment=CONVERTED=` first if this host's mount
+differs from the `~/data00/footage_converted` default):
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -128,3 +112,17 @@ cp systemd/chronicle-viewer.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now chronicle-viewer.service
 ```
+
+On the Pi, also install `photoframe-kiosk.service` to launch Chromium once
+the web app answers (it depends on `chronicle-viewer.service` by name, so
+install that first):
+
+```bash
+cp systemd/photoframe-kiosk.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now photoframe-kiosk.service
+loginctl enable-linger "$USER"   # so the units run without an active login
+```
+
+The existing `raspberrypi-rtc` timer governs the Pi's on/off hours (it halts
+8pm–midnight and wakes it), so no sleep logic lives here.
