@@ -1,0 +1,24 @@
+[Unit]
+Description=Chronicle Photo Frame - Web Viewer
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/src/chronicle/viewer
+Environment=CONVERTED=%h/data00/footage_converted
+Environment=PHOTOFRAME_DB=%h/photoframe.sqlite
+Environment=PHOTOFRAME_PORT=5000
+Environment=PHOTOFRAME_N=10
+Environment=PHOTOFRAME_X_MINS=180
+Environment=PHOTOFRAME_WINDOW_DAYS=3
+Environment=PHOTOFRAME_SLIDE_SECONDS=60
+ExecStart=%h/src/chronicle/viewer/env/bin/python %h/src/chronicle/viewer/cli.py serve
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

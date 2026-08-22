@@ -115,3 +115,16 @@ loginctl enable-linger "$USER"   # so the units run without an active login
 
 The existing `raspberrypi-rtc` timer governs the Pi's on/off hours (it halts
 8pm–midnight and wakes it), so no sleep logic lives here.
+
+## Running elsewhere (no kiosk)
+
+For a plain background instance on any other machine (e.g. the desktop, for
+dev/testing) use `systemd/chronicle-viewer.service` instead — same web app,
+no Chromium/kiosk unit:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp systemd/chronicle-viewer.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now chronicle-viewer.service
+```
