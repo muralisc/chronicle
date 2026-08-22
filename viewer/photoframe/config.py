@@ -15,6 +15,8 @@ def _expand(value: str) -> Path:
 
 # Root of the downsized images the slideshow reads. Required for index/serve.
 CONVERTED = _expand(os.environ.get("CONVERTED", "~/data00/footage_converted"))
+if not CONVERTED.is_dir():
+    raise NotADirectoryError(f"CONVERTED is not a valid directory: {CONVERTED}")
 
 # Root of the original images. Only needed by the desktop purge tool.
 SOURCE = _expand(os.environ.get("SOURCE", "~/data00/footage"))
