@@ -2,17 +2,23 @@
 """Command-line entrypoint for the photo frame (stdlib argparse).
 
 Subcommands:
-  index   walk $CONVERTED, (re)index images, prune missing rows
-  select  pick a fresh rotation now and print it (debug/inspection)
-  serve   run the web app (waitress)
+  index      walk $CONVERTED, (re)index images, prune missing rows
+  select     pick a fresh subset now and print it (debug/inspection)
+  serve      run the web app (waitress)
+  clear-ops  delete applied pending_operations rows by id (M1-invoked, remote)
 
-Delete-marks live in the DB; the desktop reads them straight from a pulled copy
-(see ../prune/delete_marked.py), so there is no marks-export step here.
+Delete-marks and pending operations (e.g. queued rotations) live in the DB;
+the desktop reads them straight from a pulled copy (see ../prune/), so there
+is no marks-export step here. After M1 applies a pending operation to the
+SOURCE original, it calls `clear-ops` here (over ssh, via
+../sync/sync-converted clear-ops) to drop the applied rows from this DB.
 """
 
 import argparse
 import logging
+import sys
 from datetime import date
+from pathlib import Path
 
 from photoframe import config, db, indexer, logging_setup, selector
 
@@ -39,7 +45,7 @@ def cmd_index(args):
 def cmd_select(args):
     conn = _open()
     today = date.fromisoformat(args.date) if args.date else None
-    rows = selector.select_rotation(conn, args.n, args.window_days, today=today)
+    rows = selector.select_subset(conn, args.n, args.window_days, today=today)
     print(f"selected {len(rows)} photos for {today or date.today()}:")
     today_year = (today or date.today()).year
     for i, r in enumerate(rows, 1):
@@ -57,6 +63,16 @@ def cmd_serve(args):
     app.main()
 
 
+def cmd_clear_ops(args):
+    conn = _open()
+    if args.ids_file:
+        ids = [int(x) for x in Path(args.ids_file).read_text().split() if x.strip()]
+    else:
+        ids = [int(x) for x in sys.stdin.read().split() if x.strip()]
+    n = db.clear_pending_operations(conn, ids)
+    print(f"cleared {n} of {len(ids)} requested pending_operations row(s)")
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="photoframe", description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
@@ -64,7 +80,7 @@ def build_parser():
     sp = sub.add_parser("index", help="index $CONVERTED and prune missing rows")
     sp.set_defaults(func=cmd_index)
 
-    sp = sub.add_parser("select", help="pick a rotation now and print it")
+    sp = sub.add_parser("select", help="pick a subset now and print it")
     sp.add_argument("--n", type=int, default=config.SUBSET_SIZE)
     sp.add_argument("--window-days", type=int, default=config.WINDOW_DAYS)
     sp.add_argument("--date", help="pretend today is this YYYY-MM-DD (for testing)")
@@ -72,6 +88,13 @@ def build_parser():
 
     sp = sub.add_parser("serve", help="run the web app (waitress)")
     sp.set_defaults(func=cmd_serve)
+
+    sp = sub.add_parser(
+        "clear-ops",
+        help="delete applied pending_operations rows by id (invoked remotely by sync-converted clear-ops)",
+    )
+    sp.add_argument("--ids-file", help="read ids from this file instead of stdin")
+    sp.set_defaults(func=cmd_clear_ops)
 
     return p
 

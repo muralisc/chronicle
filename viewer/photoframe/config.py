@@ -28,7 +28,7 @@ INDEX_ERROR_LOG = _expand(
     os.environ.get("PHOTOFRAME_INDEX_ERRORS", "~/photoframe-index-errors.log")
 )
 
-# Application log (rotating): indexing, rotation selection, marks, serving.
+# Application log (rotating): indexing, subset selection, marks, serving.
 LOG_FILE = _expand(os.environ.get("PHOTOFRAME_LOG", "~/photoframe.log"))
 
 # Web server bind.
@@ -36,7 +36,7 @@ HOST = os.environ.get("PHOTOFRAME_HOST", "0.0.0.0")
 PORT = int(os.environ.get("PHOTOFRAME_PORT", "5000"))
 
 # Slideshow behaviour.
-SUBSET_SIZE = int(os.environ.get("PHOTOFRAME_N", "10"))          # n photos per rotation
-ROTATION_MINS = float(os.environ.get("PHOTOFRAME_X_MINS", "180"))  # new subset every x minutes
+SUBSET_SIZE = int(os.environ.get("PHOTOFRAME_N", "10"))          # n photos per subset
+SUBSET_REFRESH_MINS = float(os.environ.get("PHOTOFRAME_X_MINS", "180"))  # new subset every x minutes
 WINDOW_DAYS = int(os.environ.get("PHOTOFRAME_WINDOW_DAYS", "3"))   # +/- days around today
 SLIDE_SECONDS = int(os.environ.get("PHOTOFRAME_SLIDE_SECONDS", "60"))  # per-photo dwell

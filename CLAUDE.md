@@ -17,6 +17,12 @@ frame. See `README.md` for the user-facing overview.
     `viewer/` (`cli.py serve / index`).
 - **Delete-marks live only in M2's sqlite DB.** M2 never runs extraction logic;
   M1 pulls a copy of the DB and reads it.
+- **Pending photo-edit operations (currently: rotate fixes) live in the same
+  M2 sqlite DB, in a `pending_operations` table.** M1 pulls the same DB copy
+  (no separate sync step), applies each op to the SOURCE original (EXIF
+  `Orientation` only — never touching `footage_converted` directly), then
+  tells M2 to clear the applied rows via `sync/sync-converted clear-ops` ->
+  `cli.py clear-ops`. M1 never writes into M2's live DB directly.
 
 ## Layout
 
@@ -43,6 +49,13 @@ M1  sync/sync-converted pull-marks      rsync M2's photoframe.sqlite* -> ~/.cach
 M1  prune/delete_marked.py list/purge   reads that DB; deletes SOURCE originals only
 M1  prune/3prune-orphaned-converted.py  drops converted whose source is now gone
 M1  sync/sync-converted push            --delete propagates removals + reindexes M2
+
+# rotate cycle, on M1 (independent of the delete cycle, same pulled DB):
+M1  sync/sync-converted pull-marks      (same DB pull as above -- pending_operations lives alongside marks)
+M1  prune/apply_rotations.py apply      reads pending rotate ops; writes EXIF Orientation on SOURCE only
+M1  ingest/2encode-images-for-viewing.py regenerates the converted files apply_rotations.py deleted
+M1  sync/sync-converted push            delivers the regenerated converted files to M2
+M1  sync/sync-converted clear-ops       tells M2 to drop the pending_operations rows just applied
 ```
 
 ## Conventions / gotchas
@@ -68,6 +81,21 @@ M1  sync/sync-converted push            --delete propagates removals + reindexes
 - **Layout on disk:** `$CONVERTED/YYYY/YYYY_MM_DD/[<model-subdir>/]<file>.jpg`.
 - **Deletions are confirmed:** `delete_marked.py` and `3prune` default to preview;
   real deletes need `--yes`/`--delete` or an interactive prompt. Keep that.
+- **`prune/apply_rotations.py` mutates SOURCE originals' EXIF `Orientation`**,
+  so it follows the same confirmed-by-default posture as `delete_marked.py`
+  (`--dry-run` / `--yes` / interactive prompt). It's stdlib + `exiftool`
+  subprocess only (no Pillow anywhere in this repo — everything shells out to
+  `magick`/`exiftool`), and reuses the same pulled DB (`CHRONICLE_MARKS_DB`)
+  as `delete_marked.py` rather than a separate sync step, since
+  `pending_operations` lives in the same M2 sqlite file as delete-marks.
+- **"rotation" means image-orientation only.** The slideshow's currently-
+  selected batch of photos is called the **subset** (`subset`/`subset_meta`
+  tables, `selector.py`'s `select_subset`/`ensure_subset`/`subset_meta`,
+  `/api/subset`(`/reselect`), `config.SUBSET_REFRESH_MINS`, the JS `subset`
+  array) — it was originally named "rotation" too, which collided with this
+  photo-rotation feature; it was renamed to `subset` (matching
+  `config.SUBSET_SIZE`'s existing naming) precisely to keep "rotation"
+  unambiguous. Never reintroduce bare "rotation" for the subset concept.
 
 ## Dev commands
 

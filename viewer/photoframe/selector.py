@@ -1,4 +1,4 @@
-"""Choose which photos to show and persist the active rotation.
+"""Choose which photos to show and persist the active subset.
 
 Selection priority (per the requirements):
   1. photos taken on *this day in prior years* (widened by +/- window_days),
@@ -117,13 +117,13 @@ def _window_counts(conn: sqlite3.Connection, targets: list[str]) -> tuple[int, i
     return row["available"], row["viewed"]
 
 
-def select_rotation(
+def select_subset(
     conn: sqlite3.Connection,
     n: int,
     window_days: int,
     today: date | None = None,
 ) -> list[sqlite3.Row]:
-    """Pick ``n`` photos, persist them as the active rotation, and mark them shown."""
+    """Pick ``n`` photos, persist them as the active subset, and mark them shown."""
     today = today or date.today()
     years = _prior_years(conn, today)
     targets, window = _widen_to_oldest(conn, today, window_days, years)
@@ -150,10 +150,10 @@ def select_rotation(
         chosen = chosen + topup
 
     ids = [r["id"] for r in chosen]
-    _persist_rotation(conn, ids)
+    _persist_subset(conn, ids)
     db.record_displayed(conn, ids)
     available, viewed = _window_counts(conn, targets)  # after marking the chosen shown
-    _persist_rotation_meta(conn, window, available, viewed)
+    _persist_subset_meta(conn, window, available, viewed)
     log.info(
         "selected %d photo(s) for %s (n=%d, window=+/-%dd, viewed %d/%d in window): %s",
         len(chosen), today.isoformat(), n, window, viewed, available, ids,
@@ -161,31 +161,31 @@ def select_rotation(
     return chosen
 
 
-def _persist_rotation(conn: sqlite3.Connection, photo_ids: list[int]) -> None:
+def _persist_subset(conn: sqlite3.Connection, photo_ids: list[int]) -> None:
     selected_at = db.now_iso()
-    conn.execute("DELETE FROM rotation")
+    conn.execute("DELETE FROM subset")
     conn.executemany(
-        "INSERT INTO rotation (photo_id, position, selected_at) VALUES (?, ?, ?)",
+        "INSERT INTO subset (photo_id, position, selected_at) VALUES (?, ?, ?)",
         [(pid, pos, selected_at) for pos, pid in enumerate(photo_ids)],
     )
     conn.commit()
 
 
-def _persist_rotation_meta(
+def _persist_subset_meta(
     conn: sqlite3.Connection, window_days: int, available: int, viewed: int
 ) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO rotation_meta "
+        "INSERT OR REPLACE INTO subset_meta "
         "(id, window_days, available, viewed, selected_at) VALUES (1, ?, ?, ?, ?)",
         (window_days, available, viewed, db.now_iso()),
     )
     conn.commit()
 
 
-def rotation_meta(conn: sqlite3.Connection) -> dict:
-    """Selection-window summary of the active rotation (zeros if none yet)."""
+def subset_meta(conn: sqlite3.Connection) -> dict:
+    """Selection-window summary of the active subset (zeros if none yet)."""
     row = conn.execute(
-        "SELECT window_days, available, viewed FROM rotation_meta WHERE id = 1"
+        "SELECT window_days, available, viewed FROM subset_meta WHERE id = 1"
     ).fetchone()
     if row is None:
         return {"window_days": 0, "available": 0, "viewed": 0}
@@ -196,35 +196,35 @@ def rotation_meta(conn: sqlite3.Connection) -> dict:
     }
 
 
-def current_rotation(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """Photos in the active rotation, in display order (empty if none)."""
+def current_subset(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Photos in the active subset, in display order (empty if none)."""
     return conn.execute(
-        "SELECT p.* FROM rotation r JOIN photos p ON p.id = r.photo_id "
-        "ORDER BY r.position"
+        "SELECT p.* FROM subset s JOIN photos p ON p.id = s.photo_id "
+        "ORDER BY s.position"
     ).fetchall()
 
 
 def _selected_at(conn: sqlite3.Connection) -> datetime | None:
-    row = conn.execute("SELECT selected_at FROM rotation LIMIT 1").fetchone()
+    row = conn.execute("SELECT selected_at FROM subset LIMIT 1").fetchone()
     return datetime.fromisoformat(row["selected_at"]) if row else None
 
 
-def ensure_rotation(
+def ensure_subset(
     conn: sqlite3.Connection,
     n: int,
     window_days: int,
-    rotation_mins: float,
+    refresh_mins: float,
 ) -> list[sqlite3.Row]:
-    """Return the active rotation, reselecting if it is empty or expired."""
+    """Return the active subset, reselecting if it is empty or expired."""
     selected_at = _selected_at(conn)
     expired = (
         selected_at is None
-        or datetime.now() - selected_at >= timedelta(minutes=rotation_mins)
+        or datetime.now() - selected_at >= timedelta(minutes=refresh_mins)
     )
     if expired:
         log.info(
-            "rotation %s; reselecting",
+            "subset %s; reselecting",
             "empty" if selected_at is None else "expired",
         )
-        return select_rotation(conn, n, window_days)
-    return current_rotation(conn)
+        return select_subset(conn, n, window_days)
+    return current_subset(conn)

@@ -7,7 +7,7 @@ Only ``$CONVERTED`` and the SQLite DB are needed here -- no ``$SOURCE``.
 import logging
 from datetime import date
 
-from flask import Flask, abort, g, jsonify, render_template, send_file
+from flask import Flask, abort, g, jsonify, render_template, request, send_file
 
 from photoframe import config, db, indexer, logging_setup, selector
 
@@ -36,8 +36,9 @@ def _close_conn(exc):
         conn.close()
 
 
-def _rotation_payload(rows):
+def _subset_payload(conn, rows):
     today_year = date.today().year
+    net = db.pending_rotate_degrees(conn, [r["id"] for r in rows])
     payload = []
     for r in rows:
         photo_year = int(r["photo_date"][:4])
@@ -49,6 +50,7 @@ def _rotation_payload(rows):
                 "years_ago": today_year - photo_year,
                 "rel_path": r["rel_path"],
                 "marked": bool(r["marked_for_delete"]),
+                "rotate_deg": net.get(r["id"], 0),
             }
         )
     return payload
@@ -59,21 +61,21 @@ def home():
     return render_template("slideshow.html", slide_seconds=config.SLIDE_SECONDS)
 
 
-@app.route("/api/rotation")
-def api_rotation():
+@app.route("/api/subset")
+def api_subset():
     conn = _get_conn()
-    rows = selector.ensure_rotation(
-        conn, config.SUBSET_SIZE, config.WINDOW_DAYS, config.ROTATION_MINS
+    rows = selector.ensure_subset(
+        conn, config.SUBSET_SIZE, config.WINDOW_DAYS, config.SUBSET_REFRESH_MINS
     )
-    return jsonify({"photos": _rotation_payload(rows), **selector.rotation_meta(conn)})
+    return jsonify({"photos": _subset_payload(conn, rows), **selector.subset_meta(conn)})
 
 
-@app.route("/api/rotation/reselect", methods=["POST"])
+@app.route("/api/subset/reselect", methods=["POST"])
 def api_reselect():
     conn = _get_conn()
     log.info("on-demand reselection requested")
-    rows = selector.select_rotation(conn, config.SUBSET_SIZE, config.WINDOW_DAYS)
-    return jsonify({"photos": _rotation_payload(rows), **selector.rotation_meta(conn)})
+    rows = selector.select_subset(conn, config.SUBSET_SIZE, config.WINDOW_DAYS)
+    return jsonify({"photos": _subset_payload(conn, rows), **selector.subset_meta(conn)})
 
 
 @app.route("/photo/<int:photo_id>")
@@ -87,6 +89,24 @@ def photo(photo_id):
         log.warning("photo %s file missing on disk: %s", photo_id, path)
         abort(404)
     return send_file(path)
+
+
+_VALID_ROTATE_DEGREES = {90, 180, 270}
+
+
+@app.route("/api/rotate/<int:photo_id>", methods=["POST"])
+def api_rotate(photo_id):
+    body = request.get_json(silent=True) or {}
+    deg = body.get("deg")
+    if deg not in _VALID_ROTATE_DEGREES:
+        abort(400)
+    try:
+        net = db.queue_rotate_op(_get_conn(), photo_id, deg)
+    except KeyError:
+        log.warning("rotate requested for unknown photo %s", photo_id)
+        abort(404)
+    log.info("photo %s queued rotate +%s deg (net now %s)", photo_id, deg, net)
+    return jsonify({"id": photo_id, "rotate_deg": net})
 
 
 @app.route("/api/mark/<int:photo_id>", methods=["POST"])

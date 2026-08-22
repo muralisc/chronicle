@@ -11,32 +11,37 @@
   const windowEl = document.getElementById("window-info");
   const deleteBtn = document.getElementById("delete-btn");
   const newSetBtn = document.getElementById("new-set-btn");
+  const rotateBtns = {
+    90: document.getElementById("rotate-90-btn"),
+    180: document.getElementById("rotate-180-btn"),
+    270: document.getElementById("rotate-270-btn"),
+  };
   const overlay = document.getElementById("overlay");
   const emptyEl = document.getElementById("empty");
 
-  let rotation = [];
-  let meta = {};      // active rotation's window summary (window_days/available/viewed)
+  let subset = [];
+  let meta = {};      // active subset's window summary (window_days/available/viewed)
   let index = 0;      // index of the currently shown photo
   let front = 0;      // which <img> is currently visible
   let current = null; // current photo object
   let timer = null;
 
-  async function fetchRotation() {
-    const res = await fetch("/api/rotation", { cache: "no-store" });
-    if (!res.ok) throw new Error("rotation fetch failed: " + res.status);
+  async function fetchSubset() {
+    const res = await fetch("/api/subset", { cache: "no-store" });
+    if (!res.ok) throw new Error("subset fetch failed: " + res.status);
     return res.json();
   }
 
   // The API returns { photos: [...], window_days, available, viewed }.
-  function applyRotation(data) {
-    rotation = data.photos || [];
+  function applySubset(data) {
+    subset = data.photos || [];
     meta = data;
-    emptyEl.hidden = rotation.length !== 0;
+    emptyEl.hidden = subset.length !== 0;
   }
 
-  async function loadRotation() {
+  async function loadSubset() {
     try {
-      applyRotation(await fetchRotation());
+      applySubset(await fetchSubset());
     } catch (e) {
       console.error(e);
     }
@@ -49,8 +54,14 @@
     return s;
   }
 
+  const ROT_CLASSES = ["rot-0", "rot-90", "rot-180", "rot-270"];
+  function applyRotateClass(imgEl, deg) {
+    imgEl.classList.remove(...ROT_CLASSES);
+    imgEl.classList.add("rot-" + (((deg % 360) + 360) % 360));
+  }
+
   function setOverlay(photo) {
-    counterEl.textContent = `${index + 1} / ${rotation.length}`;
+    counterEl.textContent = `${index + 1} / ${subset.length}`;
     dateEl.textContent = photo.date;
     yearsEl.textContent =
       photo.years_ago > 0 ? `(${photo.years_ago} yr${photo.years_ago > 1 ? "s" : ""} ago)` : "";
@@ -60,9 +71,9 @@
   }
 
   function show(i) {
-    if (rotation.length === 0) return;
-    index = (i % rotation.length + rotation.length) % rotation.length; // wrap both ways
-    const photo = rotation[index];
+    if (subset.length === 0) return;
+    index = (i % subset.length + subset.length) % subset.length; // wrap both ways
+    const photo = subset[index];
     current = photo;
     const back = 1 - front;
     const backImg = imgs[back];
@@ -72,14 +83,15 @@
       front = back;
     };
     backImg.src = photo.url;
+    applyRotateClass(backImg, photo.rotate_deg || 0);
     setOverlay(photo);
   }
 
   async function next() {
     // Past the end: refetch so x-hour reselection is picked up, then restart.
-    if (index + 1 >= rotation.length) {
-      await loadRotation();
-      if (rotation.length === 0) return;
+    if (index + 1 >= subset.length) {
+      await loadSubset();
+      if (subset.length === 0) return;
       show(0);
     } else {
       show(index + 1);
@@ -106,14 +118,32 @@
   }
 
   async function start() {
-    await loadRotation();
-    if (rotation.length === 0) {
+    await loadSubset();
+    if (subset.length === 0) {
       emptyEl.hidden = false;
       return;
     }
     show(0);
     startTimer();
   }
+
+  async function queueRotate(deg) {
+    if (!current) return;
+    const res = await fetch(`/api/rotate/${current.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deg }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    current.rotate_deg = data.rotate_deg;
+    const inSubset = subset.find((p) => p.id === current.id);
+    if (inSubset) inSubset.rotate_deg = data.rotate_deg;
+    applyRotateClass(imgs[front], data.rotate_deg);
+  }
+  rotateBtns[90].addEventListener("click", (ev) => { ev.stopPropagation(); queueRotate(90); });
+  rotateBtns[180].addEventListener("click", (ev) => { ev.stopPropagation(); queueRotate(180); });
+  rotateBtns[270].addEventListener("click", (ev) => { ev.stopPropagation(); queueRotate(270); });
 
   deleteBtn.addEventListener("click", async (ev) => {
     ev.stopPropagation();
@@ -122,24 +152,24 @@
     if (!res.ok) return;
     const data = await res.json();
     current.marked = data.marked;
-    // keep the rotation copy in sync too
-    const inRot = rotation.find((p) => p.id === current.id);
-    if (inRot) inRot.marked = data.marked;
+    // keep the subset copy in sync too
+    const inSubset = subset.find((p) => p.id === current.id);
+    if (inSubset) inSubset.marked = data.marked;
     deleteBtn.setAttribute("aria-pressed", data.marked ? "true" : "false");
   });
 
-  // Force a fresh subset right now, without waiting for the rotation window.
+  // Force a fresh subset right now, without waiting for the refresh window.
   newSetBtn.addEventListener("click", async (ev) => {
     ev.stopPropagation();
     try {
-      const res = await fetch("/api/rotation/reselect", { method: "POST" });
+      const res = await fetch("/api/subset/reselect", { method: "POST" });
       if (!res.ok) return;
-      applyRotation(await res.json());
+      applySubset(await res.json());
     } catch (e) {
       console.error(e);
       return;
     }
-    if (rotation.length === 0) return;
+    if (subset.length === 0) return;
     index = 0;
     show(0);
     startTimer();
@@ -148,7 +178,7 @@
   // Click the left half for previous, the right half for next.
   // Clicks on the overlay buttons are ignored (they stop propagation / are excluded).
   document.body.addEventListener("click", (ev) => {
-    if (ev.target.closest("#delete-btn") || ev.target.closest("#new-set-btn")) return;
+    if (ev.target.closest("#controls")) return;
     if (ev.clientX < window.innerWidth / 2) goPrev();
     else goNext();
   });

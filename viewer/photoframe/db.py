@@ -21,14 +21,14 @@ CREATE TABLE IF NOT EXISTS photos (
     marked_ts         TEXT
 );
 
-CREATE TABLE IF NOT EXISTS rotation (
+CREATE TABLE IF NOT EXISTS subset (
     photo_id    INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
     position    INTEGER NOT NULL,
     selected_at TEXT NOT NULL
 );
 
--- Single-row (id = 1) summary of the active rotation's selection window.
-CREATE TABLE IF NOT EXISTS rotation_meta (
+-- Single-row (id = 1) summary of the active subset's selection window.
+CREATE TABLE IF NOT EXISTS subset_meta (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
     window_days INTEGER NOT NULL,
     available   INTEGER NOT NULL,   -- non-deleted photos in the window
@@ -36,9 +36,22 @@ CREATE TABLE IF NOT EXISTS rotation_meta (
     selected_at TEXT NOT NULL
 );
 
+-- Operations queued by the viewer (e.g. rotate fixes) for M1 to apply to the
+-- SOURCE original later. AUTOINCREMENT so ids are never reused: M1 references
+-- specific row ids from a stale pulled-DB snapshot to clear them afterwards.
+CREATE TABLE IF NOT EXISTS pending_operations (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    photo_id   INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+    op         TEXT NOT NULL,          -- 'rotate_90' | 'rotate_180' | 'rotate_270'
+    created_ts TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_photos_date ON photos(photo_date);
 CREATE INDEX IF NOT EXISTS idx_photos_last_displayed ON photos(last_displayed);
+CREATE INDEX IF NOT EXISTS idx_pending_operations_photo ON pending_operations(photo_id);
 """
+
+_ROTATE_DEGREES = (90, 180, 270)
 
 
 def now_iso() -> str:
@@ -77,6 +90,51 @@ def toggle_mark(conn: sqlite3.Connection, photo_id: int) -> bool:
     )
     conn.commit()
     return bool(new_state)
+
+
+def queue_rotate_op(conn: sqlite3.Connection, photo_id: int, degrees: int) -> int:
+    """Queue a pending clockwise-rotation op. Returns the photo's new net
+    pending rotation (0/90/180/270), i.e. the sum of all its pending rotate
+    ops mod 360, for immediate UI feedback."""
+    if degrees not in _ROTATE_DEGREES:
+        raise ValueError(f"degrees must be one of {_ROTATE_DEGREES}, got {degrees}")
+    if get_photo(conn, photo_id) is None:
+        raise KeyError(f"no photo with id {photo_id}")
+    conn.execute(
+        "INSERT INTO pending_operations (photo_id, op, created_ts) VALUES (?, ?, ?)",
+        (photo_id, f"rotate_{degrees}", now_iso()),
+    )
+    conn.commit()
+    return pending_rotate_degrees(conn, [photo_id]).get(photo_id, 0)
+
+
+def pending_rotate_degrees(conn: sqlite3.Connection, photo_ids: list[int]) -> dict[int, int]:
+    """Bulk net pending clockwise rotation (mod 360) per photo id. A photo id
+    absent from the returned dict has no pending rotation (net 0)."""
+    if not photo_ids:
+        return {}
+    placeholders = ",".join("?" * len(photo_ids))
+    rows = conn.execute(
+        f"SELECT photo_id, op FROM pending_operations "
+        f"WHERE photo_id IN ({placeholders}) AND op LIKE 'rotate_%'",
+        photo_ids,
+    ).fetchall()
+    totals: dict[int, int] = {}
+    for r in rows:
+        deg = int(r["op"].removeprefix("rotate_"))
+        totals[r["photo_id"]] = (totals.get(r["photo_id"], 0) + deg) % 360
+    return totals
+
+
+def clear_pending_operations(conn: sqlite3.Connection, op_ids: list[int]) -> int:
+    """Delete specific pending_operations rows by id. Returns rows actually
+    deleted -- fewer than requested is not an error (a row may already be gone)."""
+    if not op_ids:
+        return 0
+    placeholders = ",".join("?" * len(op_ids))
+    cur = conn.execute(f"DELETE FROM pending_operations WHERE id IN ({placeholders})", op_ids)
+    conn.commit()
+    return cur.rowcount
 
 
 def record_displayed(conn: sqlite3.Connection, photo_ids: list[int]) -> None:

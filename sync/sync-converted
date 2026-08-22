@@ -8,13 +8,25 @@
 #                               then reindex on M2 so its DB drops removed rows.
 #   sync-converted pull-marks   rsync a copy of the Pi's sqlite DB to M1; the
 #                               delete tools read the marked rows straight from it.
+#   sync-converted clear-ops    tell M2 to delete pending_operations rows M1 has
+#                               already applied to SOURCE (reads
+#                               $CHRONICLE_ROTATE_IDS_FILE, written by
+#                               prune/apply_rotations.py apply). Run this only
+#                               after a push has delivered the regenerated
+#                               converted file -- otherwise M2 forgets an op
+#                               whose effect was never actually delivered.
 #
 # A full delete cycle: pull-marks -> review -> prune/delete_marked.py (source-only)
 # -> prune/3prune-orphaned-converted.py -> push (the --delete propagates to M2).
 #
+# A full rotate cycle: pull-marks -> prune/apply_rotations.py apply ->
+# ingest/2encode-images-for-viewing.py (regenerates deleted converted files) ->
+# push -> clear-ops.
+#
 # Usage:
 #   sync-converted push
 #   sync-converted pull-marks
+#   sync-converted clear-ops
 #
 # Override any of the config below via environment variables, e.g.
 #   M2_HOST=pi@pihole sync-converted push
@@ -102,11 +114,23 @@ cmd_pull_marks() {
   echo "  prune/delete_marked.py purge --dry-run"
 }
 
+cmd_clear_ops() {
+  local ids_file="${CHRONICLE_ROTATE_IDS_FILE:-$HOME/.cache/chronicle/chronicle-rotate-applied-ids.txt}"
+  if [[ ! -s "$ids_file" ]]; then
+    echo "No pending rotate-op ids to clear ($ids_file empty or missing)."
+    return 0
+  fi
+  echo -e "Clearing $(wc -l < "$ids_file") applied pending_operations row(s) on ${BLUE}${M2_HOST}${RESET}..."
+  remote_cli clear-ops < "$ids_file"
+  echo "Done."
+}
+
 case "${1:-}" in
   push)       cmd_push ;;
   pull-marks) cmd_pull_marks ;;
+  clear-ops)  cmd_clear_ops ;;
   *)
-    echo "Usage: $(basename "$0") {push|pull-marks}" >&2
+    echo "Usage: $(basename "$0") {push|pull-marks|clear-ops}" >&2
     exit 2
     ;;
 esac

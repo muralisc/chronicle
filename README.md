@@ -12,8 +12,8 @@ desktop and are pushed with `rsync --delete`.
 
 | Machine | Has | Runs |
 |---------|-----|------|
-| **M1** desktop (source of truth, not always on) | `footage` + `footage_converted` | `ingest/`, `prune/`, `sync/sync-converted` |
-| **M2** Pi (always-on viewer) | `footage_converted` only | `viewer/` (`cli.py serve / index`) |
+| **M1** desktop (source of truth, not always on) | `footage` + `footage_converted` | `ingest/`, `prune/` (incl. rotate fixes), `sync/sync-converted` |
+| **M2** Pi (always-on viewer) | `footage_converted` only | `viewer/` (`cli.py serve / index`) — also queues delete-marks and rotate ops |
 
 ## The pipeline
 
@@ -22,8 +22,9 @@ M1  ingest/1import-media-by-exif.py        dump    -> footage
 M1  ingest/2encode-images-for-viewing.py   footage -> footage_converted   (idempotent)
 M1  sync/sync-converted push               footage_converted --delete--> M2
 
-M2  viewer/cli.py serve                     show photos; user marks deletes on screen/phone
-                                            (marks live in the Pi's sqlite DB)
+M2  viewer/cli.py serve                     show photos; user marks deletes and queues
+                                            rotate fixes on screen/phone (both live in
+                                            the Pi's sqlite DB)
 
 # delete cycle (run on M1 when convenient):
 M1  sync/sync-converted pull-marks          rsync a copy of the Pi's DB to M1
@@ -32,6 +33,12 @@ M1  prune/delete_marked.py purge            delete SOURCE originals only (confir
 M1  prune/3prune-orphaned-converted.py      remove now-orphaned converted on M1
 M1  sync/sync-converted push                --delete propagates removals -> M2
                                             (push also reindexes on M2 to drop rows)
+
+# rotate cycle (independent of the delete cycle, same pulled DB):
+M1  prune/apply_rotations.py apply          write EXIF Orientation on SOURCE only (confirm)
+M1  ingest/2encode-images-for-viewing.py    regenerate converted files apply_rotations.py deleted
+M1  sync/sync-converted push                deliver the regenerated converted files -> M2
+M1  sync/sync-converted clear-ops           tell M2 to drop the applied pending_operations rows
 ```
 
 ## Layout
