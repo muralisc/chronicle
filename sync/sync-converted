@@ -27,12 +27,12 @@
 #   sync-converted push
 #   sync-converted pull-marks
 #   sync-converted clear-ops
-#   sync-converted <M2_HOST> push        # one-off override of the target host
+#   sync-converted push <M2_HOST>        # one-off override of the target host
 #
 # Override any of the config below via environment variables, e.g.
 #   M2_HOST=pi@pihole sync-converted push
-# ...or pass the host as the first argument instead (takes priority over
-# $M2_HOST for that invocation): sync-converted pi@pihole push
+# ...or pass the host as the argument after the subcommand instead (takes
+# priority over $M2_HOST for that invocation): sync-converted push pi@pihole
 
 set -euo pipefail
 
@@ -128,21 +128,14 @@ cmd_clear_ops() {
   echo "Done."
 }
 
-# If $1 isn't one of the known subcommands, treat it as a one-off M2_HOST
-# override (takes priority over $M2_HOST) and shift it off, so both
-# `sync-converted push` and `sync-converted pi@pihole push` work.
+# $2, if given, is a one-off M2_HOST override (takes priority over $M2_HOST)
+# for this invocation, e.g. `sync-converted push pi@pihole`.
 case "${1:-}" in
-  push|pull-marks|clear-ops) ;;
-  "") ;;
-  *) M2_HOST=$1; shift ;;
-esac
-
-case "${1:-}" in
-  push)       cmd_push ;;
-  pull-marks) cmd_pull_marks ;;
-  clear-ops)  cmd_clear_ops ;;
+  push)       shift; M2_HOST=${1:-$M2_HOST}; cmd_push ;;
+  pull-marks) shift; M2_HOST=${1:-$M2_HOST}; cmd_pull_marks ;;
+  clear-ops)  shift; M2_HOST=${1:-$M2_HOST}; cmd_clear_ops ;;
   *)
-    echo "Usage: $(basename "$0") [M2_HOST] {push|pull-marks|clear-ops}" >&2
+    echo "Usage: $(basename "$0") {push|pull-marks|clear-ops} [M2_HOST]" >&2
     exit 2
     ;;
 esac
