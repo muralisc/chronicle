@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stats — Photo Frame</title>
+  <link rel="stylesheet" href="/static/pages.css">
+</head>
+<body>
+  <a class="back" href="/">&larr; Back</a>
+  <h1>Stats</h1>
+
+  <section>
+    <h2>Library</h2>
+    <table>
+      <tr><th>Total photos</th><td>{{ stats.total }}</td></tr>
+      <tr><th>Date range</th><td>{{ stats.earliest or "—" }} to {{ stats.latest or "—" }}</td></tr>
+    </table>
+    {% if stats.by_year %}
+    <table>
+      <tr><th>Year</th><th>Photos</th></tr>
+      {% for year, n in stats.by_year %}
+      <tr><td>{{ year }}</td><td>{{ n }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Viewing activity</h2>
+    <table>
+      <tr><th>Never shown</th><td>{{ stats.never_shown }}</td></tr>
+      <tr><th>Shown at least once</th><td>{{ stats.shown }}</td></tr>
+      <tr><th>Total displays</th><td>{{ stats.total_displays }}</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Pending actions</h2>
+    <table>
+      <tr><th>Marked for delete</th><td>{{ stats.marked_for_delete }}</td></tr>
+      <tr><th>Pending rotate operations</th><td>{{ stats.pending_rotate_ops }} (across {{ stats.pending_rotate_photos }} photo{{ "s" if stats.pending_rotate_photos != 1 else "" }})</td></tr>
+    </table>
+  </section>
+</body>
+</html>

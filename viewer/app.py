@@ -57,8 +57,18 @@ def _subset_payload(conn, rows):
 
 
 @app.route("/")
-def home():
+def index():
+    return render_template("index.html")
+
+
+@app.route("/slideshow")
+def slideshow_page():
     return render_template("slideshow.html", slide_seconds=config.SLIDE_SECONDS)
+
+
+@app.route("/stats")
+def stats_page():
+    return render_template("stats.html", stats=db.get_stats(_get_conn()))
 
 
 @app.route("/api/subset")

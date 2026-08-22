@@ -7,7 +7,7 @@ Requisite=graphical.target
 [Service]
 Type=simple
 # Wait for the web app to answer before launching the browser.
-ExecStartPre=/bin/sh -c 'until curl -sf http://localhost:5000/ >/dev/null; do sleep 1; done'
+ExecStartPre=/bin/sh -c 'until curl -sf http://localhost:5000/slideshow >/dev/null; do sleep 1; done'
 ExecStart=/usr/bin/chromium \
     --kiosk \
     --noerrdialogs \
@@ -15,7 +15,7 @@ ExecStart=/usr/bin/chromium \
     --incognito \
     --disable-session-crashed-bubble \
     --check-for-update-interval=31536000 \
-    http://localhost:5000
+    http://localhost:5000/slideshow
 Restart=on-failure
 RestartSec=5
 

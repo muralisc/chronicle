@@ -20,8 +20,12 @@ distinct from "rotation", which always means the image-orientation fix below
 - **Web:** Flask served by `waitress` (the only two dependencies).
 - **Frontend:** vanilla HTML/CSS/JS, no build step. Chromium honours EXIF
   orientation, so no image processing is needed.
-- **Display:** Chromium `--kiosk` pointed at `http://localhost:5000` — which also
-  makes the UI reachable from a phone on the same wifi.
+- **Display:** Chromium `--kiosk` pointed at `http://localhost:5000/slideshow`
+  — which also makes the UI reachable from a phone on the same wifi.
+- **Routes:** `/` — index page linking to Slideshow and Stats; `/slideshow` —
+  the fullscreen kiosk slideshow (moved off `/` so the index page could take
+  its place); `/stats` — read-only library/viewing/pending-action counts,
+  server-rendered, no JS.
 
 Expected layout of the converted tree (anything else is logged and skipped):
 

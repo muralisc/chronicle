@@ -155,3 +155,40 @@ def marked_rel_paths(conn: sqlite3.Connection) -> list[str]:
         "SELECT rel_path FROM photos WHERE marked_for_delete = 1 ORDER BY rel_path"
     ).fetchall()
     return [r["rel_path"] for r in rows]
+
+
+def get_stats(conn: sqlite3.Connection) -> dict:
+    """Aggregate library/viewing/pending-action counts for the stats page."""
+    total = conn.execute("SELECT COUNT(*) FROM photos").fetchone()[0]
+    earliest, latest = conn.execute(
+        "SELECT MIN(photo_date), MAX(photo_date) FROM photos"
+    ).fetchone()
+    by_year = conn.execute(
+        "SELECT substr(photo_date, 1, 4) AS year, COUNT(*) AS n FROM photos "
+        "GROUP BY year ORDER BY year"
+    ).fetchall()
+    never_shown = conn.execute(
+        "SELECT COUNT(*) FROM photos WHERE last_displayed IS NULL"
+    ).fetchone()[0]
+    total_displays = conn.execute(
+        "SELECT COALESCE(SUM(display_count), 0) FROM photos"
+    ).fetchone()[0]
+    marked_for_delete = conn.execute(
+        "SELECT COUNT(*) FROM photos WHERE marked_for_delete = 1"
+    ).fetchone()[0]
+    pending_rotate_ops = conn.execute("SELECT COUNT(*) FROM pending_operations").fetchone()[0]
+    pending_rotate_photos = conn.execute(
+        "SELECT COUNT(DISTINCT photo_id) FROM pending_operations"
+    ).fetchone()[0]
+    return {
+        "total": total,
+        "earliest": earliest,
+        "latest": latest,
+        "by_year": [(r["year"], r["n"]) for r in by_year],
+        "never_shown": never_shown,
+        "shown": total - never_shown,
+        "total_displays": total_displays,
+        "marked_for_delete": marked_for_delete,
+        "pending_rotate_ops": pending_rotate_ops,
+        "pending_rotate_photos": pending_rotate_photos,
+    }
