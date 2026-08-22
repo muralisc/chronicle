@@ -18,6 +18,7 @@
   };
   const overlay = document.getElementById("overlay");
   const emptyEl = document.getElementById("empty");
+  const dwellFill = document.getElementById("dwell-fill");
 
   let subset = [];
   let meta = {};      // active subset's window summary (window_days/available/viewed)
@@ -60,6 +61,15 @@
     imgEl.classList.add("rot-" + (((deg % 360) + 360) % 360));
   }
 
+  // Restart the fill animation from empty so it always tracks the current dwell.
+  function resetDwellBar() {
+    dwellFill.style.transition = "none";
+    dwellFill.style.width = "0%";
+    void dwellFill.offsetWidth; // force reflow so the next transition isn't coalesced
+    dwellFill.style.transition = `width ${SLIDE_MS}ms linear`;
+    dwellFill.style.width = "100%";
+  }
+
   function setOverlay(photo) {
     counterEl.textContent = `${index + 1} / ${subset.length}`;
     dateEl.textContent = photo.date;
@@ -85,6 +95,7 @@
     backImg.src = photo.url;
     applyRotateClass(backImg, photo.rotate_deg || 0);
     setOverlay(photo);
+    resetDwellBar();
   }
 
   async function next() {

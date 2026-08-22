@@ -8,6 +8,22 @@ html, body {
   font-family: system-ui, sans-serif;
 }
 
+/* Dwell timer: fills over the slide duration, resets on every slide change. */
+#dwell-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 3;              /* above the overlay (2) and nav click zones (1) */
+}
+#dwell-fill {
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.85);
+}
+
 /* Left half = previous, right half = next (visual hint via cursor). */
 #stage { position: fixed; inset: 0; }
 #nav-prev, #nav-next {
