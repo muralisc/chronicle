@@ -66,7 +66,7 @@ html, body {
   bottom: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 1.2rem 1.6rem;
   gap: 1rem;
   background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
@@ -78,11 +78,23 @@ html, body {
 body:hover #overlay,
 #overlay.show { opacity: 1; }   /* show on touch/move; phones get it via .show */
 
+/* Independent of #overlay: visible by default, toggled via #caption-toggle-btn. */
 #caption {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.2rem 1.6rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
+  color: #fff;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  z-index: 2;
   font-size: 1.4rem;
   text-shadow: 0 1px 4px rgba(0,0,0,0.8);
   min-width: 0;            /* allow the long path to ellipsize, not push the buttons off */
 }
+#caption.hidden { opacity: 0; pointer-events: none; }
 #counter { margin-right: 0.6rem; opacity: 0.7; }
 #years-ago { margin-left: 0.6rem; opacity: 0.8; }
 #path,
@@ -119,6 +131,7 @@ body:hover #overlay,
   background: #6c3fa0;
   border-color: #8e5cd9;
 }
+#caption-toggle-btn[aria-pressed="false"] { opacity: 0.5; }
 
 #empty {
   position: fixed;

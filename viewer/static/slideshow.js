@@ -12,6 +12,8 @@
   const deleteBtn = document.getElementById("delete-btn");
   const privateBtn = document.getElementById("private-btn");
   const newSetBtn = document.getElementById("new-set-btn");
+  const captionEl = document.getElementById("caption");
+  const captionToggleBtn = document.getElementById("caption-toggle-btn");
   const rotateBtns = {
     90: document.getElementById("rotate-90-btn"),
     180: document.getElementById("rotate-180-btn"),
@@ -27,6 +29,19 @@
   let front = 0;      // which <img> is currently visible
   let current = null; // current photo object
   let timer = null;
+
+  // Caption visibility is independent of the buttons-overlay's hover/tap
+  // reveal, and persists across reloads.
+  const CAPTION_KEY = "chronicle.captionsVisible";
+  function loadCaptionsVisible() {
+    const v = localStorage.getItem(CAPTION_KEY);
+    return v === null ? true : v === "true";
+  }
+  function applyCaptionsVisible(visible) {
+    captionEl.classList.toggle("hidden", !visible);
+    captionToggleBtn.setAttribute("aria-pressed", visible ? "true" : "false");
+  }
+  applyCaptionsVisible(loadCaptionsVisible());
 
   async function fetchSubset() {
     const res = await fetch("/api/subset", { cache: "no-store" });
@@ -200,6 +215,13 @@
     index = 0;
     show(0);
     startTimer();
+  });
+
+  captionToggleBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const visible = captionToggleBtn.getAttribute("aria-pressed") !== "true";
+    applyCaptionsVisible(visible);
+    localStorage.setItem(CAPTION_KEY, String(visible));
   });
 
   // Click the path to copy it to the clipboard.
