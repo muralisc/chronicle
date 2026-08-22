@@ -55,6 +55,8 @@ def _iter_images(converted_root: Path):
 def index(conn: sqlite3.Connection, converted_root: Path, error_log: Path) -> dict:
     """Index new images and prune missing ones. Returns a stats dict."""
     converted_root = Path(converted_root)
+    if not converted_root.is_dir():
+        raise NotADirectoryError(f"converted_root is not a valid directory: {converted_root}")
     log.info("indexing %s", converted_root)
     added = skipped = existing = 0
     error_log = Path(error_log)
