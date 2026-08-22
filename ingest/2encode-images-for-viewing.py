@@ -101,7 +101,8 @@ def convert_one(
         dst.parent.mkdir(parents=True, exist_ok=True)
         is_raw = f.suffix.lower().lstrip(".") in RAW_EXTS
 
-        if converter == "rawtherapee" and is_raw:
+        rawtherapee_used = converter == "rawtherapee" and is_raw
+        if rawtherapee_used:
             # Demosaic to a full-res temp JPEG, then resize with magick. Avoids
             # needing a .pp3 resize profile and reuses the magick resize path.
             fd, tmp = tempfile.mkstemp(suffix=".jpg")
@@ -111,18 +112,25 @@ def convert_one(
         else:
             _run(["magick", str(f), "-resize", geometry, "-quality", str(quality), str(dst)])
 
-        # magick drops metadata — copy it back from the source.
+        # magick drops most metadata — copy it back from the source.
         # -m ignores minor errors (e.g. Pixel's incomplete extended XMP) that
         # would otherwise make exiftool refuse to write the file.
-        # magick bakes the EXIF orientation into the pixels and writes
-        # Orientation=1, so we must NOT copy the source's Orientation tag back
-        # (that would tell viewers to rotate the already-correct pixels again).
-        _run([
+        # Orientation is the one tag that needs path-specific handling:
+        # plain `magick -resize` (JPEG/PNG/TIFF, and CR3 via magick's own RAW
+        # delegate) never rotates pixels, so the source's real Orientation
+        # must be copied through as-is (the default -tagsFromFile behavior).
+        # `rawtherapee-cli` is the exception: it auto-rotates pixels during
+        # demosaic, so its output is already upright and copying the source's
+        # Orientation back would double-rotate it in viewers — force
+        # Orientation=1 for that path only.
+        cmd = [
             "exiftool", "-m", "-overwrite_original_in_place",
             "-tagsFromFile", str(f),
-            "-Orientation=Horizontal (normal)",
-            str(dst),
-        ])
+        ]
+        if rawtherapee_used:
+            cmd.append("-Orientation=Horizontal (normal)")
+        cmd.append(str(dst))
+        _run(cmd)
 
         # Source lacked a date: infer one from the folder path if possible
         if not has_date:
