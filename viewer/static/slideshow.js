@@ -2,6 +2,8 @@
   "use strict";
 
   const SLIDE_MS = (window.SLIDE_SECONDS || 60) * 1000;
+  const KB_MAX_SCALE = 1.30;
+  const KB_PAN_PCT = 2;
 
   const imgs = [document.getElementById("img-a"), document.getElementById("img-b")];
   const dateEl = document.getElementById("date");
@@ -77,6 +79,23 @@
     imgEl.classList.add("rot-" + (((deg % 360) + 360) % 360));
   }
 
+  // Slow randomized pan/zoom over the full dwell time. Owns the whole
+  // `transform` (including rotation) for the duration of the animation, so
+  // it must be restarted whenever the photo or its rotation changes.
+  function startKenBurns(imgEl, deg) {
+    imgEl.getAnimations().forEach((a) => a.cancel());
+    const base = `translate(-50%, -50%) rotate(${deg}deg)`;
+    const zoomIn = Math.random() < 0.5;
+    const panX = (Math.random() < 0.5 ? 1 : -1) * KB_PAN_PCT;
+    const panY = (Math.random() < 0.5 ? 1 : -1) * KB_PAN_PCT;
+    const rest = `${base} scale(1) translate(0%, 0%)`;
+    const zoomed = `${base} scale(${KB_MAX_SCALE}) translate(${panX}%, ${panY}%)`;
+    imgEl.animate(
+      [{ transform: zoomIn ? rest : zoomed }, { transform: zoomIn ? zoomed : rest }],
+      { duration: SLIDE_MS, easing: "linear", fill: "forwards" },
+    );
+  }
+
   // Restart the fill animation from empty so it always tracks the current dwell.
   function resetDwellBar() {
     dwellFill.style.transition = "none";
@@ -112,6 +131,7 @@
     };
     backImg.src = photo.url;
     applyRotateClass(backImg, photo.rotate_deg || 0);
+    startKenBurns(backImg, photo.rotate_deg || 0);
     setOverlay(photo);
     resetDwellBar();
   }
@@ -169,6 +189,7 @@
     const inSubset = subset.find((p) => p.id === current.id);
     if (inSubset) inSubset.rotate_deg = data.rotate_deg;
     applyRotateClass(imgs[front], data.rotate_deg);
+    startKenBurns(imgs[front], data.rotate_deg);
   }
   rotateBtns[90].addEventListener("click", (ev) => { ev.stopPropagation(); queueRotate(90); });
   rotateBtns[180].addEventListener("click", (ev) => { ev.stopPropagation(); queueRotate(180); });

@@ -42,7 +42,7 @@ html, body {
   left: 50%;
   width: 100vw;
   height: 100vh;
-  transform: translate(-50%, -50%) rotate(0deg);
+  transform: translate(-50%, -50%);   /* rotation is applied per-photo in JS, see startKenBurns() */
   transform-origin: center center;
   object-fit: contain;     /* letterbox, never crop */
   image-orientation: from-image;
@@ -55,9 +55,6 @@ html, body {
    viewport instead of overflowing (its own width/height were sized for the
    unrotated orientation). */
 .slide.rot-90, .slide.rot-270 { width: 100vh; height: 100vw; }
-.slide.rot-90  { transform: translate(-50%, -50%) rotate(90deg); }
-.slide.rot-180 { transform: translate(-50%, -50%) rotate(180deg); }
-.slide.rot-270 { transform: translate(-50%, -50%) rotate(270deg); }
 
 #overlay {
   position: fixed;
