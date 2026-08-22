@@ -96,6 +96,8 @@ body:hover #overlay,
   text-overflow: ellipsis;
 }
 #window-info { opacity: 0.6; }
+#path { cursor: pointer; }
+#path.copied { opacity: 1; color: #7CFC9C; }
 
 #controls { display: flex; gap: 1rem; }
 

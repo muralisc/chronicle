@@ -77,6 +77,7 @@
     yearsEl.textContent =
       photo.years_ago > 0 ? `(${photo.years_ago} yr${photo.years_ago > 1 ? "s" : ""} ago)` : "";
     pathEl.textContent = photo.rel_path;
+    pathEl.classList.remove("copied");
     windowEl.textContent = windowText();
     deleteBtn.setAttribute("aria-pressed", photo.marked ? "true" : "false");
     privateBtn.setAttribute("aria-pressed", photo.private ? "true" : "false");
@@ -199,6 +200,50 @@
     index = 0;
     show(0);
     startTimer();
+  });
+
+  // Click the path to copy it to the clipboard.
+  // navigator.clipboard needs a secure context (https or localhost), which this
+  // LAN-served-over-http app isn't, so fall back to the older execCommand copy.
+  function legacyCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (e) {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  async function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        // fall through to legacy path
+      }
+    }
+    return legacyCopy(text);
+  }
+
+  let copiedTimer = null;
+  pathEl.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    if (!current) return;
+    const ok = await copyToClipboard(current.rel_path);
+    if (!ok) return;
+    pathEl.classList.add("copied");
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => pathEl.classList.remove("copied"), 1200);
   });
 
   // Click the left half for previous, the right half for next.
