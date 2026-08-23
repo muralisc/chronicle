@@ -39,7 +39,7 @@ set -euo pipefail
 # --- config (env-overridable) -----------------------------------------------
 M2_HOST=${M2_HOST:-pi@machine2}
 LOCAL_CONVERTED=${CONVERTED:-$HOME/data00/footage_converted}
-REMOTE_CONVERTED=${M2_CONVERTED:-data00/footage_converted}   # relative to M2 $HOME
+REMOTE_CONVERTED=${M2_CONVERTED:-$HOME/data00/footage_converted}   # relative to M2 $HOME
 REMOTE_VIEWER=${M2_VIEWER:-src/chronicle/viewer}             # relative to M2 $HOME (push reindex)
 REMOTE_PY=${M2_PY:-env/bin/python}                           # relative to REMOTE_VIEWER
 REMOTE_DB=${M2_DB:-photoframe.sqlite}                        # M2 sqlite, relative to M2 $HOME
