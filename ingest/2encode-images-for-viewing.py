@@ -100,6 +100,7 @@ def convert_one(
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         is_raw = f.suffix.lower().lstrip(".") in RAW_EXTS
+        is_heic = f.suffix.lower().lstrip(".") == "heic"
 
         rawtherapee_used = converter == "rawtherapee" and is_raw
         if rawtherapee_used:
@@ -116,18 +117,19 @@ def convert_one(
         # -m ignores minor errors (e.g. Pixel's incomplete extended XMP) that
         # would otherwise make exiftool refuse to write the file.
         # Orientation is the one tag that needs path-specific handling:
-        # plain `magick -resize` (JPEG/PNG/TIFF, and CR3 via magick's own RAW
-        # delegate) never rotates pixels, so the source's real Orientation
-        # must be copied through as-is (the default -tagsFromFile behavior).
-        # `rawtherapee-cli` is the exception: it auto-rotates pixels during
-        # demosaic, so its output is already upright and copying the source's
-        # Orientation back would double-rotate it in viewers — force
-        # Orientation=1 for that path only.
+        # plain `magick -resize` on JPEG/PNG/TIFF/CR3 never rotates pixels, so
+        # the source's real Orientation must be copied through as-is (the
+        # default -tagsFromFile behavior). Two paths are exceptions because
+        # they auto-rotate pixels themselves, leaving the output already
+        # upright — copying the source's Orientation back would double-rotate
+        # it in viewers, so Orientation is forced to 1 instead:
+        # `rawtherapee-cli` auto-rotates during demosaic, and magick's own
+        # HEIC delegate (libheif) auto-rotates during decode.
         cmd = [
             "exiftool", "-m", "-overwrite_original_in_place",
             "-tagsFromFile", str(f),
         ]
-        if rawtherapee_used:
+        if rawtherapee_used or is_heic:
             cmd.append("-Orientation=Horizontal (normal)")
         cmd.append(str(dst))
         _run(cmd)
