@@ -43,7 +43,11 @@ def index():
 
 @app.route("/api/groups")
 def api_groups():
-    return jsonify({"groups": db.list_groups(_get_conn(), pending_only=True)})
+    groups = db.list_groups(_get_conn(), pending_only=True)
+    for group in groups:
+        for member in group["members"]:
+            member["abs_path"] = str(config.CONVERTED / member["rel_path"])
+    return jsonify({"groups": groups})
 
 
 @app.route("/api/stats")

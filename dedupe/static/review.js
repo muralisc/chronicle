@@ -14,6 +14,36 @@
     return `${n.toFixed(1)} ${units[i]}`;
   }
 
+  // POSIX double-quote-safe: wrap in "..." and escape the chars the shell
+  // still treats specially inside double quotes.
+  function quote(path) {
+    return `"${path.replace(/[\\"$`]/g, "\\$&")}"`;
+  }
+
+  function legacyCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  async function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) { /* fall through to legacy path */ }
+    }
+    return legacyCopy(text);
+  }
+
   async function fetchStats() {
     const res = await fetch("/api/stats", { cache: "no-store" });
     if (!res.ok) return;
@@ -105,6 +135,30 @@
       members.appendChild(memberCard(group, member));
     }
     div.appendChild(members);
+
+    const pathsSection = document.createElement("div");
+    pathsSection.className = "group-paths-section";
+
+    const pathsTitle = document.createElement("div");
+    pathsTitle.className = "group-paths-title";
+    pathsTitle.textContent = "Paths (click to copy for your image manager)";
+    pathsSection.appendChild(pathsTitle);
+
+    const pathsText = group.members.map((m) => quote(m.abs_path)).join(" ");
+    const pathsEl = document.createElement("pre");
+    pathsEl.className = "group-paths";
+    pathsEl.title = "Click to copy";
+    pathsEl.textContent = pathsText;
+    let copiedTimer = null;
+    pathsEl.addEventListener("click", async () => {
+      if (!(await copyToClipboard(pathsText))) return;
+      pathsEl.classList.add("copied");
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => pathsEl.classList.remove("copied"), 1200);
+    });
+    pathsSection.appendChild(pathsEl);
+
+    div.appendChild(pathsSection);
 
     return div;
   }
