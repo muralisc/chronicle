@@ -12,7 +12,7 @@ frame. See `README.md` for the user-facing overview.
   `rsync --delete`.
 - **Two machines:**
   - **M1** = desktop, source of truth, *not always on*. Runs `ingest/`,
-    `prune/`, `sync/`.
+    `prune/`, `dedupe/`, `sync/`.
   - **M2** = Raspberry Pi, always-on viewer, has `footage_converted` only. Runs
     `viewer/` (`cli.py serve / index`).
 - **Delete-marks live only in M2's sqlite DB.** M2 never runs extraction logic;
@@ -31,11 +31,16 @@ chronicle/
   common/   media_common.py — shared date/EXIF/progress helpers (rich; exiftool is lazy)
   ingest/   1import (organize by EXIF) + 2encode (downsize)        [Python venv]
   prune/    delete_marked.py (delete source) + 3prune (reconcile converted) [Python venv]
+  dedupe/   find_duplicates.py (hash/group) + app.py (review UI) + purge_duplicates.py [Python venv]
   viewer/   Flask photo-frame app + photoframe/ package (runs on the Pi)    [Python venv: env/]
   sync/     sync-converted — bash rsync/ssh wrapper (push + pull-marks)
 ```
 
 Each `*/README.md` documents that stage. `sync/` is the only non-Python piece.
+`dedupe/` runs entirely on M1 (it needs both `footage` and `footage_converted`,
+unlike `viewer/`) and owns its own SQLite DB, `dedupe.sqlite` — produced
+locally by `find_duplicates.py`, never pulled from M2 like `photoframe.sqlite`
+is.
 
 ## The pipeline
 
@@ -56,6 +61,13 @@ M1  prune/apply_rotations.py apply      reads pending rotate ops; writes EXIF Or
 M1  ingest/2encode-images-for-viewing.py regenerates the converted files apply_rotations.py deleted
 M1  sync/sync-converted push            delivers the regenerated converted files to M2
 M1  sync/sync-converted clear-ops       tells M2 to drop the pending_operations rows just applied
+
+# dedupe cycle, on M1 (independent, own local-only dedupe.sqlite -- no pull step):
+M1  dedupe/find_duplicates.py           hashes footage_converted, writes groups to dedupe.sqlite
+M1  dedupe/app.py                       browser review UI; Keep/Delete only record a decision
+M1  dedupe/purge_duplicates.py purge    deletes SOURCE for decision='delete' photos
+M1  prune/3prune-orphaned-converted.py  drops converted whose source is now gone
+M1  sync/sync-converted push            --delete propagates removals + reindexes M2
 ```
 
 ## Conventions / gotchas
@@ -97,6 +109,12 @@ M1  sync/sync-converted clear-ops       tells M2 to drop the pending_operations 
   `magick`/`exiftool`), and reuses the same pulled DB (`CHRONICLE_MARKS_DB`)
   as `delete_marked.py` rather than a separate sync step, since
   `pending_operations` lives in the same M2 sqlite file as delete-marks.
+- **`dedupe/` duplicates the stem-glob `_resolve`/`_is_image_file` helper and
+  the `RAW_EXTS` constant a third time** (`delete_marked.py` and
+  `apply_rotations.py` already each have their own copy) rather than
+  centralizing them — keep doing that if you touch this again; it's an
+  intentional pattern in this repo, not something to "fix" into a partial
+  shared module.
 - **"rotation" means image-orientation only.** The slideshow's currently-
   selected batch of photos is called the **subset** (`subset`/`subset_meta`
   tables, `selector.py`'s `select_subset`/`ensure_subset`/`subset_meta`,
@@ -112,12 +130,15 @@ M1  sync/sync-converted clear-ops       tells M2 to drop the pending_operations 
 # per-stage venvs (sync needs none)
 python -m venv ingest/venv && ingest/venv/bin/pip install -r ingest/requirements.txt
 python -m venv prune/venv  && prune/venv/bin/pip  install -r prune/requirements.txt
+python -m venv dedupe/venv && dedupe/venv/bin/pip install -r dedupe/requirements.txt
 python -m venv viewer/env  && viewer/env/bin/pip  install -r viewer/requirements.txt
-# ingest also needs the exiftool + imagemagick (`magick`) CLIs on PATH
+# ingest and dedupe also need the exiftool CLI on PATH; ingest also needs imagemagick (`magick`)
 
 # quick smoke checks
 ingest/venv/bin/python ingest/2encode-images-for-viewing.py --help
 prune/venv/bin/python  prune/delete_marked.py --help        # stdlib-only
+dedupe/venv/bin/python dedupe/find_duplicates.py --help
+dedupe/venv/bin/python dedupe/purge_duplicates.py --help
 viewer/env/bin/python  viewer/cli.py select --n 5 --date 2026-06-26
 bash -n sync/sync-converted
 ```

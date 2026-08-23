@@ -1,0 +1,6 @@
+Pillow>=10.0
+imagehash>=4.3
+rich>=13.0
+click>=8.0
+Flask
+waitress

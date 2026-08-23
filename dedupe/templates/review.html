@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duplicate review</title>
+  <link rel="stylesheet" href="/static/review.css">
+</head>
+<body>
+  <header>
+    <h1>Duplicate review</h1>
+    <div id="stats"></div>
+    <button id="refresh-btn" class="btn" type="button">Refresh</button>
+  </header>
+
+  <main id="groups"></main>
+
+  <div id="empty" hidden>
+    No pending duplicate groups. Run <code>find_duplicates.py</code> to scan,
+    or all groups have been reviewed already.
+  </div>
+
+  <script src="/static/review.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+  background: #111;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}
+
+body { padding: 1.5rem; }
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+header h1 { font-size: 1.4rem; }
+#stats { opacity: 0.7; font-size: 0.9rem; flex: 1; }
+
+.btn {
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.5rem;
+}
+.btn:hover { background: rgba(255,255,255,0.15); }
+.btn.small { font-size: 0.8rem; padding: 0.25rem 0.6rem; }
+
+#empty { opacity: 0.7; padding: 2rem 0; }
+
+.group {
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.group-head .method {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  background: rgba(255,255,255,0.1);
+}
+.group-head .method.exact { background: #3a5a; }
+.group-head .method.phash { background: #5a3a5a; }
+.group-head .spacer { flex: 1; }
+
+.members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.member {
+  width: 15rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+.member.decision-keep { border-color: #4caf50; }
+.member.decision-delete { border-color: #f44336; opacity: 0.6; }
+.member img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 0.3rem;
+  background: #222;
+}
+.member .badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.4rem 0;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+.member .badges span {
+  background: rgba(255,255,255,0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+}
+.member .badges .recommended { background: #2e7d32; }
+.member .badges .raw { background: #1565c0; }
+.member .path {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  word-break: break-all;
+  margin-bottom: 0.4rem;
+}
+.member .actions { display: flex; gap: 0.4rem; }
+.member .actions .btn.active { background: rgba(255,255,255,0.3); }
