@@ -49,8 +49,14 @@ def resolve_date(meta: dict, filename: str) -> Optional[datetime]:
 
 
 def resolve_camera(meta: dict, default: str) -> str:
-    model = (meta.get("EXIF:Model") or "").strip().replace(" ", "_")
-    return model or default
+    model = (meta.get("EXIF:Model") or "").strip()
+    if not model:
+        # Some containers (e.g. QuickTime video) don't populate EXIF:Model;
+        # fall back to Make-Model so cameras are still distinguishable.
+        make = (meta.get("EXIF:Make") or meta.get("QuickTime:Make") or "").strip()
+        qt_model = (meta.get("QuickTime:Model") or "").strip()
+        model = "-".join(p for p in (make, qt_model) if p)
+    return model.replace(" ", "_") or default
 
 
 def unique_path(path: Path, used: set[str]) -> Path:
