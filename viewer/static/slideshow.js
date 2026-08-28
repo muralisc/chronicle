@@ -79,10 +79,12 @@
     const ms = new Date(meta.next_refresh_at).getTime() - Date.now();
     if (ms <= 0) return "next set any moment";
     const totalMins = Math.round(ms / 60000);
-    const hrs = Math.floor(totalMins / 60);
+    const days = Math.floor(totalMins / 1440);
+    const hrs = Math.floor((totalMins % 1440) / 60);
     const mins = totalMins % 60;
     const parts = [];
-    if (hrs > 0) parts.push(`${hrs}h`);
+    if (days > 0) parts.push(`${days}d`);
+    if (days > 0 || hrs > 0) parts.push(`${hrs}h`);
     parts.push(`${mins}m`);
     return `next set in ${parts.join(" ")}`;
   }
