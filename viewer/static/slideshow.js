@@ -11,6 +11,7 @@
   const counterEl = document.getElementById("counter");
   const pathEl = document.getElementById("path");
   const windowEl = document.getElementById("window-info");
+  const nextRefreshEl = document.getElementById("next-refresh");
   const deleteBtn = document.getElementById("delete-btn");
   const privateBtn = document.getElementById("private-btn");
   const newSetBtn = document.getElementById("new-set-btn");
@@ -73,6 +74,19 @@
     return s;
   }
 
+  function nextRefreshText() {
+    if (!meta.next_refresh_at) return "";
+    const ms = new Date(meta.next_refresh_at).getTime() - Date.now();
+    if (ms <= 0) return "next set any moment";
+    const totalMins = Math.round(ms / 60000);
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}h`);
+    parts.push(`${mins}m`);
+    return `next set in ${parts.join(" ")}`;
+  }
+
   const ROT_CLASSES = ["rot-0", "rot-90", "rot-180", "rot-270"];
   function applyRotateClass(imgEl, deg) {
     imgEl.classList.remove(...ROT_CLASSES);
@@ -113,6 +127,7 @@
     pathEl.textContent = photo.rel_path;
     pathEl.classList.remove("copied");
     windowEl.textContent = windowText();
+    nextRefreshEl.textContent = nextRefreshText();
     deleteBtn.setAttribute("aria-pressed", photo.marked ? "true" : "false");
     privateBtn.setAttribute("aria-pressed", photo.private ? "true" : "false");
   }

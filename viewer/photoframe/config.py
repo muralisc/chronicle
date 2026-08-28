@@ -39,6 +39,6 @@ PORT = int(os.environ.get("PHOTOFRAME_PORT", "5000"))
 
 # Slideshow behaviour.
 SUBSET_SIZE = int(os.environ.get("PHOTOFRAME_N", "10"))          # n photos per subset
-SUBSET_REFRESH_MINS = float(os.environ.get("PHOTOFRAME_X_MINS", "180"))  # new subset every x minutes
+SUBSET_REFRESH_MINS = float(os.environ.get("PHOTOFRAME_X_MINS", str(30*24*60)))  # new subset every x minutes
 WINDOW_DAYS = int(os.environ.get("PHOTOFRAME_WINDOW_DAYS", "3"))   # +/- days around today
 SLIDE_SECONDS = int(os.environ.get("PHOTOFRAME_SLIDE_SECONDS", "60"))  # per-photo dwell

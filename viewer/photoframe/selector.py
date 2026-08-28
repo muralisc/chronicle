@@ -188,14 +188,15 @@ def _persist_subset_meta(
 def subset_meta(conn: sqlite3.Connection) -> dict:
     """Selection-window summary of the active subset (zeros if none yet)."""
     row = conn.execute(
-        "SELECT window_days, available, viewed FROM subset_meta WHERE id = 1"
+        "SELECT window_days, available, viewed, selected_at FROM subset_meta WHERE id = 1"
     ).fetchone()
     if row is None:
-        return {"window_days": 0, "available": 0, "viewed": 0}
+        return {"window_days": 0, "available": 0, "viewed": 0, "selected_at": None}
     return {
         "window_days": row["window_days"],
         "available": row["available"],
         "viewed": row["viewed"],
+        "selected_at": row["selected_at"],
     }
 
 

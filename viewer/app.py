@@ -5,7 +5,7 @@ Only ``$CONVERTED`` and the SQLite DB are needed here -- no ``$SOURCE``.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from flask import Flask, abort, g, jsonify, render_template, request, send_file
 
@@ -58,6 +58,19 @@ def _subset_payload(conn, rows):
     return payload
 
 
+def _subset_meta_payload(conn):
+    """subset_meta() plus next_refresh_at, the ISO timestamp of the next
+    scheduled reselection (None if no subset has been selected yet)."""
+    meta = selector.subset_meta(conn)
+    next_refresh_at = None
+    if meta["selected_at"]:
+        next_refresh_at = (
+            datetime.fromisoformat(meta["selected_at"])
+            + timedelta(minutes=config.SUBSET_REFRESH_MINS)
+        ).isoformat(timespec="seconds")
+    return {**meta, "next_refresh_at": next_refresh_at}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -79,7 +92,7 @@ def api_subset():
     rows = selector.ensure_subset(
         conn, config.SUBSET_SIZE, config.WINDOW_DAYS, config.SUBSET_REFRESH_MINS
     )
-    return jsonify({"photos": _subset_payload(conn, rows), **selector.subset_meta(conn)})
+    return jsonify({"photos": _subset_payload(conn, rows), **_subset_meta_payload(conn)})
 
 
 @app.route("/api/subset/reselect", methods=["POST"])
@@ -87,7 +100,7 @@ def api_reselect():
     conn = _get_conn()
     log.info("on-demand reselection requested")
     rows = selector.select_subset(conn, config.SUBSET_SIZE, config.WINDOW_DAYS)
-    return jsonify({"photos": _subset_payload(conn, rows), **selector.subset_meta(conn)})
+    return jsonify({"photos": _subset_payload(conn, rows), **_subset_meta_payload(conn)})
 
 
 @app.route("/photo/<int:photo_id>")

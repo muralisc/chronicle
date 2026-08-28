@@ -95,7 +95,8 @@ body:hover #overlay,
 #counter { margin-right: 0.6rem; opacity: 0.7; }
 #years-ago { margin-left: 0.6rem; opacity: 0.8; }
 #path,
-#window-info {
+#window-info,
+#next-refresh {
   display: block;
   margin-top: 0.3rem;
   font-size: 0.95rem;
@@ -104,7 +105,8 @@ body:hover #overlay,
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#window-info { opacity: 0.6; }
+#window-info,
+#next-refresh { opacity: 0.6; }
 #path { cursor: pointer; }
 #path.copied { opacity: 1; color: #7CFC9C; }
 
