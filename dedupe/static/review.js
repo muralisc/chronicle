@@ -5,6 +5,7 @@
   const emptyEl = document.getElementById("empty");
   const statsEl = document.getElementById("stats");
   const refreshBtn = document.getElementById("refresh-btn");
+  const sortSelect = document.getElementById("sort-select");
 
   function fmtBytes(n) {
     if (!n) return "?";
@@ -168,6 +169,12 @@
     if (!res.ok) throw new Error("groups fetch failed: " + res.status);
     const { groups } = await res.json();
 
+    if (sortSelect.value === "size-desc") {
+      groups.sort((a, b) => b.members.length - a.members.length);
+    } else if (sortSelect.value === "size-asc") {
+      groups.sort((a, b) => a.members.length - b.members.length);
+    }
+
     groupsEl.innerHTML = "";
     emptyEl.hidden = groups.length !== 0;
     for (const group of groups) {
@@ -177,5 +184,6 @@
   }
 
   refreshBtn.addEventListener("click", loadGroups);
+  sortSelect.addEventListener("change", () => loadGroups().catch((e) => console.error(e)));
   loadGroups().catch((e) => console.error(e));
 })();
