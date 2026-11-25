@@ -1,31 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <!-- chronicle: a calendar page that is a photo; the page behind is last year.
-       Master icon: regenerate the PNG/ICO exports with ../export-icons.sh -->
+       Transparent background. Master icon: regenerate the PNG/ICO exports
+       with ../export-icons.sh -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a2f45"/><stop offset="1" stop-color="#14161f"/>
-    </linearGradient>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#ff6f61"/>
     </linearGradient>
-    <clipPath id="page"><rect x="48" y="112" width="416" height="344" rx="40"/></clipPath>
+    <clipPath id="page"><rect x="10" y="89" width="492" height="407" rx="47"/></clipPath>
   </defs>
 
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-
   <!-- last year's page, peeking above -->
-  <rect x="76" y="84" width="360" height="300" rx="36" fill="#6b7393"/>
+  <rect x="43" y="56" width="426" height="355" rx="43" fill="#6b7393"/>
 
   <!-- this year's page -->
   <g clip-path="url(#page)">
-    <rect x="48" y="112" width="416" height="344" fill="url(#sky)"/>
-    <circle cx="350" cy="268" r="44" fill="#fff4d6"/>
-    <path d="M48 456 L196 286 L278 376 L340 314 L464 456 Z" fill="#2a3150"/>
-    <path d="M48 456 L196 286 L228 322 L148 456 Z" fill="#222842"/>
-    <rect x="48" y="112" width="416" height="82" fill="#f6f3ec"/>
+    <rect x="10" y="89" width="492" height="407" fill="url(#sky)"/>
+    <circle cx="367" cy="273" r="52" fill="#fff4d6"/>
+    <path d="M10 496 L185 295 L282 401 L355 328 L502 496 Z" fill="#2a3150"/>
+    <path d="M10 496 L185 295 L223 337 L128 496 Z" fill="#222842"/>
+    <rect x="10" y="89" width="492" height="97" fill="#f6f3ec"/>
   </g>
 
   <!-- binder rings -->
-  <rect x="138" y="56" width="34" height="96" rx="17" fill="#f6f3ec" stroke="#1d2030" stroke-width="12"/>
-  <rect x="340" y="56" width="34" height="96" rx="17" fill="#f6f3ec" stroke="#1d2030" stroke-width="12"/>
+  <rect x="116" y="23" width="40" height="114" rx="20" fill="#f6f3ec" stroke="#1d2030" stroke-width="14"/>
+  <rect x="356" y="23" width="40" height="114" rx="20" fill="#f6f3ec" stroke="#1d2030" stroke-width="14"/>
 </svg>
