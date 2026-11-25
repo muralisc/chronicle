@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- chronicle: a calendar page that is a photo; the page behind is last year.
-       Transparent background. Master icon: regenerate the PNG/ICO exports
-       with ../export-icons.sh -->
+  <!-- chronicle: a calendar page that is a photo (sky, sun, mountains, river,
+       cartoon tree); the page behind is last year. Transparent background.
+       Master icon: regenerate the PNG/ICO exports with ../export-icons.sh -->
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#ff6f61"/>
+      <stop offset="0" stop-color="#3d97e6"/><stop offset="1" stop-color="#a6dbff"/>
+    </linearGradient>
+    <linearGradient id="river" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7cc4f2"/><stop offset="1" stop-color="#2f8fdc"/>
     </linearGradient>
     <clipPath id="page"><rect x="10" y="89" width="492" height="407" rx="47"/></clipPath>
   </defs>
@@ -15,9 +18,42 @@
   <!-- this year's page -->
   <g clip-path="url(#page)">
     <rect x="10" y="89" width="492" height="407" fill="url(#sky)"/>
-    <circle cx="367" cy="273" r="52" fill="#fff4d6"/>
-    <path d="M10 496 L185 295 L282 401 L355 328 L502 496 Z" fill="#2a3150"/>
-    <path d="M10 496 L185 295 L223 337 L128 496 Z" fill="#222842"/>
+
+    <!-- sun -->
+    <circle cx="132" cy="252" r="56" fill="#fff6c2" opacity="0.55"/>
+    <circle cx="132" cy="252" r="40" fill="#ffd84d"/>
+
+    <!-- mountains: far range, then near range, with snow caps -->
+    <path d="M10 352 L92 280 L150 326 L236 236 L330 330 L394 268 L502 350 L502 400 L10 400 Z" fill="#8fa3c7"/>
+    <path d="M206 268 L236 236 L268 270 L252 262 L238 274 L222 262 Z" fill="#ffffff"/>
+    <path d="M376 286 L394 268 L414 284 L402 282 L392 290 Z" fill="#ffffff"/>
+    <path d="M10 380 L120 318 L210 372 L300 300 L410 376 L502 330 L502 410 L10 410 Z" fill="#6a80aa"/>
+    <path d="M276 320 L300 300 L326 318 L312 314 L300 324 L288 314 Z" fill="#eef3fb"/>
+
+    <!-- meadow -->
+    <path d="M10 392 C130 376 260 384 360 378 S470 372 502 376 L502 496 L10 496 Z" fill="#7cc96a"/>
+    <path d="M10 444 C150 430 330 446 502 432 L502 496 L10 496 Z" fill="#5fb153"/>
+
+    <!-- river: narrow at the foot of the mountains (top right), widening to the bottom left -->
+    <path d="M392 380 C360 396 330 404 300 420 C250 446 170 456 110 476 C70 488 40 494 10 496 L10 500 L196 500 C240 470 300 452 350 428 C380 412 400 396 412 380 Z" fill="url(#river)"/>
+    <path d="M330 412 C300 426 270 436 240 446" fill="none" stroke="#c9ecff" stroke-width="5" stroke-linecap="round"/>
+    <path d="M190 470 C150 480 120 486 92 490" fill="none" stroke="#c9ecff" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- cartoon tree on the right -->
+    <ellipse cx="428" cy="478" rx="58" ry="12" fill="#3f8f40" opacity="0.6"/>
+    <path d="M412 482 C418 440 416 400 420 360 L398 330 L408 324 L424 344 L428 312 L440 312 L440 348 L462 324 L470 332 L446 364 C446 404 446 440 452 482 Z" fill="#8a5a3b"/>
+    <path d="M436 482 C432 440 434 400 434 362 L440 352 C440 400 442 440 452 482 Z" fill="#6e4429"/>
+    <g fill="#2f8a45">
+      <circle cx="364" cy="322" r="40"/><circle cx="422" cy="340" r="44"/><circle cx="476" cy="320" r="38"/>
+    </g>
+    <g fill="#3fa152">
+      <circle cx="376" cy="284" r="44"/><circle cx="430" cy="260" r="50"/><circle cx="478" cy="286" r="40"/><circle cx="426" cy="308" r="46"/>
+    </g>
+    <g fill="#53b358">
+      <circle cx="412" cy="248" r="24"/><circle cx="370" cy="274" r="18"/><circle cx="462" cy="272" r="16"/>
+    </g>
+
+    <!-- page header -->
     <rect x="10" y="89" width="492" height="97" fill="#f6f3ec"/>
   </g>
 
