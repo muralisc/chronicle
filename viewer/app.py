@@ -80,7 +80,7 @@ def index():
 @app.route("/favicon.ico")
 def favicon():
     # Browsers and dashboards (e.g. Homepage) probe this path by default.
-    return send_file(os.path.join(app.static_folder, "icon.png"), mimetype="image/png")
+    return send_file(os.path.join(app.static_folder, "favicon.ico"), mimetype="image/vnd.microsoft.icon")
 
 
 @app.route("/slideshow")

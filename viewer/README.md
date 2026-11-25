@@ -126,3 +126,9 @@ loginctl enable-linger "$USER"   # so the units run without an active login
 
 The existing `raspberrypi-rtc` timer governs the Pi's on/off hours (it halts
 8pm–midnight and wakes it), so no sleep logic lives here.
+
+## Icon
+
+`static/icon.svg` is the master app icon. After editing it, run
+`./export-icons.sh` (needs ffmpeg with librsvg) to regenerate `icon.png` (512),
+`icon-192.png`, `apple-touch-icon.png` (180) and `favicon.ico` (16/32/48).
