@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- chronicle: a stack of prints from prior years, newest on top -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f45"/>
+      <stop offset="1" stop-color="#14161f"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb35c"/>
+      <stop offset="1" stop-color="#ff7a59"/>
+    </linearGradient>
+    <clipPath id="photo">
+      <rect x="148" y="150" width="216" height="176" rx="6"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- older prints, fanned behind -->
+  <g transform="rotate(-14 256 270)">
+    <rect x="128" y="130" width="256" height="276" rx="14" fill="#6b7393"/>
+  </g>
+  <g transform="rotate(8 256 270)">
+    <rect x="128" y="130" width="256" height="276" rx="14" fill="#a9b0c8"/>
+  </g>
+
+  <!-- front print -->
+  <rect x="128" y="130" width="256" height="276" rx="14" fill="#f6f3ec"/>
+  <g clip-path="url(#photo)">
+    <rect x="148" y="150" width="216" height="176" fill="url(#sky)"/>
+    <circle cx="308" cy="200" r="24" fill="#fff4d6"/>
+    <path d="M148 326 L222 236 L268 290 L300 256 L364 326 Z" fill="#3b4466"/>
+    <path d="M148 326 L222 236 L246 265 L200 326 Z" fill="#2a3150"/>
+  </g>
+  <!-- caption strip: a date line -->
+  <rect x="168" y="350" width="104" height="14" rx="7" fill="#c9c3b5"/>
+  <rect x="284" y="350" width="60" height="14" rx="7" fill="#ff7a59"/>
+</svg>

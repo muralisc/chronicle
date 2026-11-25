@@ -5,6 +5,7 @@ Only ``$CONVERTED`` and the SQLite DB are needed here -- no ``$SOURCE``.
 """
 
 import logging
+import os
 from datetime import date, datetime, timedelta
 
 from flask import Flask, abort, g, jsonify, render_template, request, send_file
@@ -74,6 +75,12 @@ def _subset_meta_payload(conn):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    # Browsers and dashboards (e.g. Homepage) probe this path by default.
+    return send_file(os.path.join(app.static_folder, "icon.png"), mimetype="image/png")
 
 
 @app.route("/slideshow")
